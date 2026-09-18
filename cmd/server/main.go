@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/<ваш-юзер>/family-tasks/internal/api"
+	"github.com/gogi0001/family-tasks/internal/api"
 )
 
 func main() {
