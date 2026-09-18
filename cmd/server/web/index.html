@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <title>Семейные задачи</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>Семейные задачи</h1>
+    <label class="me">
+      Я:
+      <input id="me" placeholder="имя" autocomplete="name" maxlength="60">
+    </label>
+  </header>
+
+  <main>
+    <form id="add-form">
+      <input id="title" placeholder="Что сделать?" required maxlength="200">
+      <input id="assignee" placeholder="Кому?" required maxlength="100">
+      <input id="description" placeholder="Детали (необязательно)" maxlength="500">
+      <button type="submit">Добавить</button>
+    </form>
+
+    <section id="tasks"></section>
+    <p id="empty" hidden>Пока задач нет.</p>
+  </main>
+
+  <div id="toast" hidden></div>
+  <script src="/app.js" defer></script>
+</body>
+</html>
