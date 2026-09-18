@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -14,19 +15,31 @@ type tasksHandler struct {
 	store storage.TaskStore
 }
 
+// --- handlers ---
+
 func (h *tasksHandler) list(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, h.store.List())
+	tasks, err := h.store.List(r.Context())
+	if err != nil {
+		slog.ErrorContext(r.Context(), "list tasks",
+			"err", err,
+			"request_id", w.Header().Get("X-Request-ID"),
+		)
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	writeJSON(w, http.StatusOK, tasks)
 }
 
 func (h *tasksHandler) create(w http.ResponseWriter, r *http.Request) {
 	var req models.CreateTaskRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json: "+err.Error())
+		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
 	req.Title = strings.TrimSpace(req.Title)
 	req.Assignee = strings.TrimSpace(req.Assignee)
 	req.CreatedBy = strings.TrimSpace(req.CreatedBy)
+	req.Description = strings.TrimSpace(req.Description)
 
 	switch {
 	case req.Title == "":
@@ -40,14 +53,19 @@ func (h *tasksHandler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	t := h.store.Create(req)
+	t, err := h.store.Create(r.Context(), req)
+	if err != nil {
+		slog.ErrorContext(r.Context(), "create task", "err", err)
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
 	writeJSON(w, http.StatusCreated, t)
 }
 
 func (h *tasksHandler) get(w http.ResponseWriter, r *http.Request) {
-	t, err := h.store.Get(r.PathValue("id"))
+	t, err := h.store.Get(r.Context(), r.PathValue("id"))
 	if err != nil {
-		writeStoreError(w, err)
+		writeStoreError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, t)
@@ -59,6 +77,7 @@ func (h *tasksHandler) update(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
+
 	if req.Status != nil && !req.Status.Valid() {
 		writeError(w, http.StatusBadRequest, "invalid status")
 		return
@@ -79,27 +98,38 @@ func (h *tasksHandler) update(w http.ResponseWriter, r *http.Request) {
 		}
 		req.Assignee = &v
 	}
+	if req.Description != nil {
+		v := strings.TrimSpace(*req.Description)
+		req.Description = &v
+	}
 
-	t, err := h.store.Update(r.PathValue("id"), req)
+	t, err := h.store.Update(r.Context(), r.PathValue("id"), req)
 	if err != nil {
-		writeStoreError(w, err)
+		writeStoreError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, t)
 }
 
 func (h *tasksHandler) delete(w http.ResponseWriter, r *http.Request) {
-	if err := h.store.Delete(r.PathValue("id")); err != nil {
-		writeStoreError(w, err)
+	if err := h.store.Delete(r.Context(), r.PathValue("id")); err != nil {
+		writeStoreError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func writeStoreError(w http.ResponseWriter, err error) {
+// --- helpers ---
+
+func writeStoreError(w http.ResponseWriter, r *http.Request, err error) {
 	if errors.Is(err, storage.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "task not found")
 		return
 	}
+	slog.ErrorContext(r.Context(), "store error",
+		"err", err,
+		"path", r.URL.Path,
+		"request_id", w.Header().Get("X-Request-ID"),
+	)
 	writeError(w, http.StatusInternalServerError, "internal error")
 }

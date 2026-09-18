@@ -11,13 +11,14 @@ import (
 
 type Config struct {
 	WebDir string
+	Store  storage.TaskStore
 }
 
 func NewRouter(cfg Config) http.Handler {
 	mux := http.NewServeMux()
 
-	store := storage.NewMemory()
-	th := &tasksHandler{store: store}
+	// store := storage.NewMemory()
+	th := &tasksHandler{store: cfg.Store}
 
 	// --- служебные ---
 	mux.HandleFunc("GET /api/v1/ping", handlePing)
