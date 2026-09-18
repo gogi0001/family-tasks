@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Family Tasks</title>
+</head>
+<body>
+  <h1>Family Tasks</h1>
+  <p id="status">Проверяю сервер…</p>
+  <script>
+    fetch('/api/v1/ping')
+      .then(r => r.json())
+      .then(d => document.getElementById('status').textContent = 'Сервер: ' + d.status)
+      .catch(() => document.getElementById('status').textContent = 'Сервер недоступен');
+  </script>
+</body>
+</html>
