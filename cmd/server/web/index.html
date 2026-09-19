@@ -10,25 +10,84 @@
 <body>
   <header>
     <h1>Семейные задачи</h1>
-    <label class="me">
-      Я:
-      <input id="me" placeholder="имя" autocomplete="name" maxlength="60">
-    </label>
+    <div class="who">
+      <button id="who-avatar" type="button" title="Сменить цвет">
+        <span id="who-avatar-letter"></span>
+      </button>
+      <span id="who-name"></span>
+      <button id="who-logout" type="button" hidden title="Сменить имя">×</button>
+    </div>
   </header>
 
   <main>
-    <form id="add-form">
-      <input id="title" placeholder="Что сделать?" required maxlength="200">
-      <input id="assignee" placeholder="Кому?" required maxlength="100">
-      <input id="description" placeholder="Детали (необязательно)" maxlength="500">
-      <button type="submit">Добавить</button>
-    </form>
+    <!-- Семья -->
+    <section id="family-box" hidden>
+      <div class="family-head">
+        <span id="family-name"></span>
+        <span class="chip muted">код: <b id="family-code"></b></span>
+      </div>
+      <div id="family-members" class="task-meta"></div>
+    </section>
 
-    <section id="tasks"></section>
-    <p id="empty" hidden>Пока задач нет.</p>
+    <!-- Нет семьи: создать / присоединиться -->
+    <section id="family-gate" hidden>
+      <div class="card">
+        <h2>Создать семью</h2>
+        <form id="family-create-form">
+          <input id="family-name-input"
+                 placeholder="Название (например, «Наши дела»)"
+                 maxlength="80" required>
+          <button type="submit">Создать</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Присоединиться</h2>
+        <form id="family-join-form">
+          <input id="family-code-input"
+                 placeholder="Код приглашения"
+                 maxlength="16" required>
+          <button type="submit">Войти</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Задачи -->
+    <div id="tasks-area" hidden>
+      <form id="add-form">
+        <input id="title"
+               placeholder="Что сделать?"
+               required maxlength="200">
+        <select id="assignee" required></select>
+        <input id="description"
+               placeholder="Детали (необязательно)"
+               maxlength="500">
+        <button type="submit">Добавить</button>
+      </form>
+
+      <section id="tasks"></section>
+      <p id="empty" hidden>Пока задач нет.</p>
+    </div>
   </main>
 
+  <!-- Модалка "Как тебя зовут?" -->
+  <div id="name-modal">
+    <form id="name-form">
+      <h2>Как тебя зовут?</h2>
+      <input id="name-input"
+             placeholder="Имя"
+             maxlength="60"
+             autocomplete="name"
+             required>
+      <button type="submit">Продолжить</button>
+    </form>
+  </div>
+
+  <!-- Палитра цветов (скрыта, показывается по клику на аватарку) -->
+  <div id="color-picker" hidden>
+    <div id="color-grid"></div>
+  </div>
+
   <div id="toast" hidden></div>
-  <script src="/app.js" defer></script>
+  <script type="module" src="/js/main.js"></script>
 </body>
 </html>

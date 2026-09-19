@@ -19,21 +19,32 @@ func (s Status) Valid() bool {
 }
 
 type Task struct {
-	ID          string    `json:"id"`
-	Title       string    `json:"title"`
-	Description string    `json:"description,omitempty"`
-	Assignee    string    `json:"assignee"`
-	CreatedBy   string    `json:"createdBy"`
-	Status      Status    `json:"status"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	ID              string    `json:"id"`
+	FamilyID        string    `json:"familyId,omitempty"`
+	Title           string    `json:"title"`
+	Description     string    `json:"description,omitempty"`
+	Assignee        string    `json:"assignee"`
+	CreatedBy       string    `json:"createdBy"`
+	Status          Status    `json:"status"`
+	StatusUpdatedBy string    `json:"statusUpdatedBy,omitempty"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
 }
 
+type TaskCreate struct {
+	FamilyID    string
+	Title       string
+	Description string
+	Assignee    string
+	CreatedBy   string
+}
+
+// CreateTaskRequest — то, что приходит от клиента по HTTP.
+// CreatedBy отсутствует намеренно: сервер берёт его из сессии.
 type CreateTaskRequest struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Assignee    string `json:"assignee"`
-	CreatedBy   string `json:"createdBy"`
 }
 
 type UpdateTaskRequest struct {

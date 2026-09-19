@@ -15,13 +15,31 @@ type tasksHandler struct {
 	store storage.TaskStore
 }
 
-// --- handlers ---
+// requireFamily проверяет, что пользователь идентифицирован и состоит в семье.
+// При ошибке сам пишет ответ и возвращает ok=false.
+func requireFamily(w http.ResponseWriter, r *http.Request) (*models.User, bool) {
+	u, ok := userFromCtx(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "not identified")
+		return nil, false
+	}
+	if u.FamilyID == "" {
+		writeError(w, http.StatusForbidden, "no family")
+		return nil, false
+	}
+	return u, true
+}
 
 func (h *tasksHandler) list(w http.ResponseWriter, r *http.Request) {
-	tasks, err := h.store.List(r.Context())
+	u, ok := requireFamily(w, r)
+	if !ok {
+		return
+	}
+	tasks, err := h.store.List(r.Context(), u.FamilyID)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "list tasks",
 			"err", err,
+			"family_id", u.FamilyID,
 			"request_id", w.Header().Get("X-Request-ID"),
 		)
 		writeError(w, http.StatusInternalServerError, "internal error")
@@ -31,6 +49,11 @@ func (h *tasksHandler) list(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *tasksHandler) create(w http.ResponseWriter, r *http.Request) {
+	u, ok := requireFamily(w, r)
+	if !ok {
+		return
+	}
+
 	var req models.CreateTaskRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
@@ -38,7 +61,6 @@ func (h *tasksHandler) create(w http.ResponseWriter, r *http.Request) {
 	}
 	req.Title = strings.TrimSpace(req.Title)
 	req.Assignee = strings.TrimSpace(req.Assignee)
-	req.CreatedBy = strings.TrimSpace(req.CreatedBy)
 	req.Description = strings.TrimSpace(req.Description)
 
 	switch {
@@ -48,14 +70,17 @@ func (h *tasksHandler) create(w http.ResponseWriter, r *http.Request) {
 	case req.Assignee == "":
 		writeError(w, http.StatusBadRequest, "assignee is required")
 		return
-	case req.CreatedBy == "":
-		writeError(w, http.StatusBadRequest, "createdBy is required")
-		return
 	}
 
-	t, err := h.store.Create(r.Context(), req)
+	t, err := h.store.Create(r.Context(), models.TaskCreate{
+		FamilyID:    u.FamilyID,
+		Title:       req.Title,
+		Description: req.Description,
+		Assignee:    req.Assignee,
+		CreatedBy:   u.Name,
+	})
 	if err != nil {
-		slog.ErrorContext(r.Context(), "create task", "err", err)
+		slog.ErrorContext(r.Context(), "create task", "err", err, "family_id", u.FamilyID)
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
@@ -63,7 +88,11 @@ func (h *tasksHandler) create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *tasksHandler) get(w http.ResponseWriter, r *http.Request) {
-	t, err := h.store.Get(r.Context(), r.PathValue("id"))
+	u, ok := requireFamily(w, r)
+	if !ok {
+		return
+	}
+	t, err := h.store.Get(r.Context(), u.FamilyID, r.PathValue("id"))
 	if err != nil {
 		writeStoreError(w, r, err)
 		return
@@ -72,6 +101,11 @@ func (h *tasksHandler) get(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *tasksHandler) update(w http.ResponseWriter, r *http.Request) {
+	u, ok := requireFamily(w, r)
+	if !ok {
+		return
+	}
+
 	var req models.UpdateTaskRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
@@ -103,7 +137,7 @@ func (h *tasksHandler) update(w http.ResponseWriter, r *http.Request) {
 		req.Description = &v
 	}
 
-	t, err := h.store.Update(r.Context(), r.PathValue("id"), req)
+	t, err := h.store.Update(r.Context(), u.FamilyID, r.PathValue("id"), u.ID, req)
 	if err != nil {
 		writeStoreError(w, r, err)
 		return
@@ -112,14 +146,16 @@ func (h *tasksHandler) update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *tasksHandler) delete(w http.ResponseWriter, r *http.Request) {
-	if err := h.store.Delete(r.Context(), r.PathValue("id")); err != nil {
+	u, ok := requireFamily(w, r)
+	if !ok {
+		return
+	}
+	if err := h.store.Delete(r.Context(), u.FamilyID, r.PathValue("id")); err != nil {
 		writeStoreError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
-
-// --- helpers ---
 
 func writeStoreError(w http.ResponseWriter, r *http.Request, err error) {
 	if errors.Is(err, storage.ErrNotFound) {

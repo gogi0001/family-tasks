@@ -16,7 +16,9 @@ import (
 )
 
 func main() {
-	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
+	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	})
 	slog.SetDefault(slog.New(handler))
 
 	addr := envOr("ADDR", ":8787")
@@ -47,8 +49,13 @@ func main() {
 	slog.Info("starting server", "addr", addr, "web_dir", webDir, "db_path", dbPath)
 
 	srv := &http.Server{
-		Addr:              addr,
-		Handler:           api.NewRouter(api.Config{WebDir: webDir, Store: store}),
+		Addr: addr,
+		Handler: api.NewRouter(api.Config{
+			WebDir:   webDir,
+			Tasks:    store,
+			Users:    store,
+			Families: store,
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -72,6 +79,8 @@ func main() {
 	slog.Info("stopped")
 }
 
+// --- helpers ---
+
 func envOr(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
@@ -79,7 +88,10 @@ func envOr(key, def string) string {
 	return def
 }
 
-// resolveWebDir — как в прошлом шаге, не менялся.
+// resolveWebDir ищет web-папку:
+//   - если задан WEB_DIR — используется как есть;
+//   - иначе пробуем ./web (запуск из корня), ../../web (запуск из cmd/server),
+//     и web рядом с исполняемым файлом.
 func resolveWebDir(explicit string) (string, error) {
 	candidates := []string{}
 	if explicit != "" {
@@ -95,9 +107,21 @@ func resolveWebDir(explicit string) (string, error) {
 		if err != nil {
 			continue
 		}
-		if st, err := os.Stat(abs); err == nil && st.IsDir() {
+		st, err := os.Stat(abs)
+		if err == nil && st.IsDir() {
 			return abs, nil
 		}
 	}
-	return "", errors.New("no web dir found")
+	return "", errors.New("no web dir found; checked: " + joinStrings(candidates, ", "))
+}
+
+func joinStrings(ss []string, sep string) string {
+	out := ""
+	for i, s := range ss {
+		if i > 0 {
+			out += sep
+		}
+		out += s
+	}
+	return out
 }

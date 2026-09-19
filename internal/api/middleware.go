@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gogi0001/family-tasks/internal/storage"
 	"github.com/google/uuid"
 )
 
@@ -74,5 +75,29 @@ func withLogging(next http.Handler) http.Handler {
 			"remote", r.RemoteAddr,
 			"ua", r.UserAgent(),
 		)
+	})
+}
+
+const userCookie = "uid"
+
+// withUser читает cookie uid, подгружает пользователя и кладёт в контекст.
+// Ничего не падает, если cookie нет или пользователь удалён — просто нет юзера.
+func withUser(us storage.UserStore, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := r.Cookie(userCookie)
+		if err != nil || c.Value == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		u, err := us.GetUser(r.Context(), c.Value)
+		if err != nil {
+			// Cookie есть, но пользователя нет — считаем сессию протухшей.
+			http.SetCookie(w, &http.Cookie{
+				Name: userCookie, Value: "", Path: "/", MaxAge: -1,
+			})
+			next.ServeHTTP(w, r)
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(contextWithUser(r.Context(), u)))
 	})
 }

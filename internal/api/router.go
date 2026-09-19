@@ -10,18 +10,31 @@ import (
 )
 
 type Config struct {
-	WebDir string
-	Store  storage.TaskStore
+	WebDir   string
+	Tasks    storage.TaskStore
+	Users    storage.UserStore
+	Families storage.FamilyStore
 }
 
 func NewRouter(cfg Config) http.Handler {
 	mux := http.NewServeMux()
 
-	// store := storage.NewMemory()
-	th := &tasksHandler{store: cfg.Store}
+	th := &tasksHandler{store: cfg.Tasks}
+	mh := &meHandler{users: cfg.Users}
+	fh := &familyHandler{families: cfg.Families, users: cfg.Users}
 
 	// --- служебные ---
 	mux.HandleFunc("GET /api/v1/ping", handlePing)
+
+	// --- идентификация ---
+	mux.HandleFunc("GET /api/v1/me", mh.get)
+	mux.HandleFunc("POST /api/v1/me", mh.set)
+	mux.HandleFunc("PATCH /api/v1/me", mh.setColor) // ← вот это
+	mux.HandleFunc("DELETE /api/v1/me", mh.logout)
+	// --- семьи ---
+	mux.HandleFunc("POST /api/v1/families", fh.create)
+	mux.HandleFunc("POST /api/v1/families/join", fh.join)
+	mux.HandleFunc("GET /api/v1/families/me", fh.me)
 
 	// --- задачи ---
 	mux.HandleFunc("GET /api/v1/tasks", th.list)
@@ -39,14 +52,35 @@ func NewRouter(cfg Config) http.Handler {
 		slog.Warn("static disabled: WebDir is empty")
 	}
 
+	// Обёртки. Порядок применения:
+	//   mux  →  withUser  →  apiJSONNotFound  →  withLogging
+	// Логирование — самый внешний слой, чтобы видеть все запросы.
+	// withUser идёт ближе к мультиплексору, чтобы положить *User в контекст.
 	var h http.Handler = mux
-	h = apiJSONNotFound(h) // /api/* → JSON 404 вместо HTML от FileServer
+	h = withUser(cfg.Users, h)
+	h = apiJSONNotFound(h)
 	h = withLogging(h)
 	return h
 }
 
+// --- helpers ---
+
+func handlePing(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func writeJSON(w http.ResponseWriter, code int, v any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(code)
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+func writeError(w http.ResponseWriter, code int, msg string) {
+	writeJSON(w, code, map[string]string{"error": msg})
+}
+
 // apiJSONNotFound подменяет HTML-404 от FileServer на JSON для путей /api/*.
-// Реализовано обёрткой, а не паттерном мультиплексора, — так избегаем конфликта
+// Реализовано обёрткой, а не паттерном мультиплексора — так избегаем конфликта
 // с "GET /" в ServeMux Go 1.22+.
 func apiJSONNotFound(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -84,18 +118,4 @@ func (w *apiNotFoundRecorder) Write(b []byte) (int, error) {
 		return len(b), nil
 	}
 	return w.ResponseWriter.Write(b)
-}
-
-func handlePing(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-}
-
-func writeJSON(w http.ResponseWriter, code int, v any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(code)
-	_ = json.NewEncoder(w).Encode(v)
-}
-
-func writeError(w http.ResponseWriter, code int, msg string) {
-	writeJSON(w, code, map[string]string{"error": msg})
 }

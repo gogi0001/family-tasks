@@ -2,8 +2,10 @@ package storage
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"embed"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sort"
@@ -26,15 +28,12 @@ type SQLite struct {
 }
 
 func OpenSQLite(path string) (*SQLite, error) {
-	// WAL + busy_timeout: параллельные чтения не блокируют запись,
-	// и короткие "занятости" не валят запросы.
 	dsn := path + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(ON)"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 
-	// Для файлового SQLite одно соединение на запись — самый предсказуемый режим.
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 
@@ -53,6 +52,8 @@ func OpenSQLite(path string) (*SQLite, error) {
 }
 
 func (s *SQLite) Close() error { return s.db.Close() }
+
+// --- migrations ---
 
 func (s *SQLite) migrate() error {
 	if _, err := s.db.Exec(`
@@ -92,14 +93,24 @@ func (s *SQLite) migrate() error {
 			return fmt.Errorf("read migration %s: %w", name, err)
 		}
 
+		stmts := splitStatements(string(body))
+		if len(stmts) == 0 {
+			slog.Warn("migration is empty", "version", name)
+		}
+
 		tx, err := s.db.Begin()
 		if err != nil {
 			return fmt.Errorf("begin tx %s: %w", name, err)
 		}
-		if _, err := tx.Exec(string(body)); err != nil {
-			_ = tx.Rollback()
-			return fmt.Errorf("apply migration %s: %w", name, err)
+
+		for i, stmt := range stmts {
+			if _, err := tx.Exec(stmt); err != nil {
+				_ = tx.Rollback()
+				return fmt.Errorf("apply migration %s (stmt %d): %w\nSQL: %s",
+					name, i+1, err, stmt)
+			}
 		}
+
 		if _, err := tx.Exec(
 			`INSERT INTO schema_migrations(version, applied_at) VALUES(?, ?)`,
 			name, time.Now().UTC().Format(timeLayout),
@@ -110,19 +121,44 @@ func (s *SQLite) migrate() error {
 		if err := tx.Commit(); err != nil {
 			return fmt.Errorf("commit migration %s: %w", name, err)
 		}
-		slog.Info("migration applied", "version", name)
+		slog.Info("migration applied", "version", name, "statements", len(stmts))
 	}
 	return nil
 }
 
-// --- CRUD ---
+func splitStatements(sql string) []string {
+	raw := strings.Split(sql, ";")
+	out := make([]string, 0, len(raw))
+	for _, p := range raw {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		hasCode := false
+		for _, line := range strings.Split(p, "\n") {
+			line = strings.TrimSpace(line)
+			if line != "" && !strings.HasPrefix(line, "--") {
+				hasCode = true
+				break
+			}
+		}
+		if hasCode {
+			out = append(out, p)
+		}
+	}
+	return out
+}
 
-func (s *SQLite) List(ctx context.Context) ([]*models.Task, error) {
+// --- tasks ---
+
+func (s *SQLite) List(ctx context.Context, familyID string) ([]*models.Task, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT id, title, description, assignee, created_by, status, created_at, updated_at
+		SELECT id, COALESCE(family_id, ''), title, description, assignee, created_by,
+		       status, COALESCE(status_updated_by, ''), created_at, updated_at
 		FROM tasks
+		WHERE family_id = ?
 		ORDER BY created_at ASC
-	`)
+	`, familyID)
 	if err != nil {
 		return nil, fmt.Errorf("list tasks: %w", err)
 	}
@@ -142,39 +178,35 @@ func (s *SQLite) List(ctx context.Context) ([]*models.Task, error) {
 	return out, nil
 }
 
-func (s *SQLite) Get(ctx context.Context, id string) (*models.Task, error) {
+func (s *SQLite) Get(ctx context.Context, familyID, id string) (*models.Task, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, title, description, assignee, created_by, status, created_at, updated_at
-		FROM tasks WHERE id = ?
-	`, id)
-	t, err := scanTask(row)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ErrNotFound
-		}
-		return nil, err
-	}
-	return t, nil
+		SELECT id, COALESCE(family_id, ''), title, description, assignee, created_by,
+		       status, COALESCE(status_updated_by, ''), created_at, updated_at
+		FROM tasks
+		WHERE id = ? AND family_id = ?
+	`, id, familyID)
+	return scanTask(row)
 }
 
-func (s *SQLite) Create(ctx context.Context, req models.CreateTaskRequest) (*models.Task, error) {
+func (s *SQLite) Create(ctx context.Context, in models.TaskCreate) (*models.Task, error) {
 	now := time.Now().UTC()
 	t := &models.Task{
 		ID:          uuid.NewString(),
-		Title:       req.Title,
-		Description: req.Description,
-		Assignee:    req.Assignee,
-		CreatedBy:   req.CreatedBy,
+		FamilyID:    in.FamilyID,
+		Title:       in.Title,
+		Description: in.Description,
+		Assignee:    in.Assignee,
+		CreatedBy:   in.CreatedBy,
 		Status:      models.StatusTodo,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
 
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO tasks (id, title, description, assignee, created_by, status, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (id, family_id, title, description, assignee, created_by, status, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`,
-		t.ID, t.Title, t.Description, t.Assignee, t.CreatedBy, string(t.Status),
+		t.ID, t.FamilyID, t.Title, t.Description, t.Assignee, t.CreatedBy, string(t.Status),
 		t.CreatedAt.Format(timeLayout), t.UpdatedAt.Format(timeLayout),
 	)
 	if err != nil {
@@ -183,10 +215,9 @@ func (s *SQLite) Create(ctx context.Context, req models.CreateTaskRequest) (*mod
 	return t, nil
 }
 
-func (s *SQLite) Update(ctx context.Context, id string, req models.UpdateTaskRequest) (*models.Task, error) {
-	// Собираем только присланные поля — так PATCH остаётся частичным.
-	sets := make([]string, 0, 5)
-	args := make([]any, 0, 6)
+func (s *SQLite) Update(ctx context.Context, familyID, id, actorID string, req models.UpdateTaskRequest) (*models.Task, error) {
+	sets := make([]string, 0, 6)
+	args := make([]any, 0, 8)
 
 	if req.Title != nil {
 		sets = append(sets, "title = ?")
@@ -201,41 +232,174 @@ func (s *SQLite) Update(ctx context.Context, id string, req models.UpdateTaskReq
 		args = append(args, *req.Assignee)
 	}
 	if req.Status != nil {
-		sets = append(sets, "status = ?")
-		args = append(args, string(*req.Status))
+		sets = append(sets, "status = ?", "status_updated_by = ?")
+		args = append(args, string(*req.Status), actorID)
 	}
 	sets = append(sets, "updated_at = ?")
 	args = append(args, time.Now().UTC().Format(timeLayout))
-	args = append(args, id)
+	args = append(args, id, familyID)
 
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE tasks SET `+strings.Join(sets, ", ")+` WHERE id = ?`, args...)
+		`UPDATE tasks SET `+strings.Join(sets, ", ")+` WHERE id = ? AND family_id = ?`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("update task: %w", err)
 	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		// Может быть "не найдено" или "нечего менять" (та же дата). Проверяем явно.
-		if _, err := s.Get(ctx, id); err != nil {
+	if n, _ := res.RowsAffected(); n == 0 {
+		if _, err := s.Get(ctx, familyID, id); err != nil {
 			return nil, err
 		}
 	}
-	return s.Get(ctx, id)
+	return s.Get(ctx, familyID, id)
 }
 
-func (s *SQLite) Delete(ctx context.Context, id string) error {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM tasks WHERE id = ?`, id)
+func (s *SQLite) Delete(ctx context.Context, familyID, id string) error {
+	res, err := s.db.ExecContext(ctx,
+		`DELETE FROM tasks WHERE id = ? AND family_id = ?`, id, familyID)
 	if err != nil {
 		return fmt.Errorf("delete task: %w", err)
 	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
+	if n, _ := res.RowsAffected(); n == 0 {
 		return ErrNotFound
 	}
 	return nil
 }
 
-// --- helpers ---
+// --- users ---
+
+func (s *SQLite) GetUser(ctx context.Context, id string) (*models.User, error) {
+	row := s.db.QueryRowContext(ctx, `
+		SELECT id, name, COALESCE(color, ''), COALESCE(family_id, ''), COALESCE(role, ''), created_at
+		FROM users WHERE id = ?
+	`, id)
+	return scanUser(row)
+}
+
+func (s *SQLite) FindOrCreateByName(ctx context.Context, name string) (*models.User, error) {
+	row := s.db.QueryRowContext(ctx, `
+		SELECT id, name, COALESCE(color, ''), COALESCE(family_id, ''), COALESCE(role, ''), created_at
+		FROM users WHERE lower(name) = lower(?)
+	`, name)
+	u, err := scanUser(row)
+	if err == nil {
+		return u, nil
+	}
+	if !errors.Is(err, ErrNotFound) {
+		return nil, err
+	}
+
+	u = &models.User{
+		ID:        uuid.NewString(),
+		Name:      name,
+		Color:     DefaultColorFor(name),
+		CreatedAt: time.Now().UTC(),
+	}
+	res, err := s.db.ExecContext(ctx,
+		`INSERT OR IGNORE INTO users (id, name, color, created_at) VALUES (?, ?, ?, ?)`,
+		u.ID, u.Name, u.Color, u.CreatedAt.Format(timeLayout),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("insert user: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		row = s.db.QueryRowContext(ctx, `
+			SELECT id, name, COALESCE(color, ''), COALESCE(family_id, ''), COALESCE(role, ''), created_at
+			FROM users WHERE lower(name) = lower(?)
+		`, name)
+		return scanUser(row)
+	}
+	return u, nil
+}
+
+func (s *SQLite) SetFamily(ctx context.Context, userID, familyID string, role models.Role) error {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE users SET family_id = ?, role = ? WHERE id = ?`,
+		familyID, string(role), userID)
+	if err != nil {
+		return fmt.Errorf("set family: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *SQLite) SetColor(ctx context.Context, userID, color string) error {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE users SET color = ? WHERE id = ?`, color, userID)
+	if err != nil {
+		return fmt.Errorf("set color: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// --- families ---
+
+func (s *SQLite) CreateFamily(ctx context.Context, name, ownerID string) (*models.Family, error) {
+	now := time.Now().UTC()
+	f := &models.Family{
+		ID:         uuid.NewString(),
+		Name:       name,
+		InviteCode: generateInviteCode(),
+		CreatedBy:  ownerID,
+		CreatedAt:  now,
+	}
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO families (id, name, invite_code, created_by, created_at)
+		VALUES (?, ?, ?, ?, ?)
+	`, f.ID, f.Name, f.InviteCode, f.CreatedBy, f.CreatedAt.Format(timeLayout))
+	if err != nil {
+		return nil, fmt.Errorf("insert family: %w", err)
+	}
+	return f, nil
+}
+
+func (s *SQLite) GetFamilyByID(ctx context.Context, id string) (*models.Family, error) {
+	row := s.db.QueryRowContext(ctx, `
+		SELECT id, name, invite_code, created_by, created_at
+		FROM families WHERE id = ?
+	`, id)
+	return scanFamily(row)
+}
+
+func (s *SQLite) GetFamilyByCode(ctx context.Context, code string) (*models.Family, error) {
+	row := s.db.QueryRowContext(ctx, `
+		SELECT id, name, invite_code, created_by, created_at
+		FROM families WHERE invite_code = ?
+	`, code)
+	return scanFamily(row)
+}
+
+func (s *SQLite) FamilyMembers(ctx context.Context, familyID string) ([]models.FamilyMember, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, name, COALESCE(role, 'member'), COALESCE(color, '')
+		FROM users WHERE family_id = ?
+		ORDER BY created_at ASC
+	`, familyID)
+	if err != nil {
+		return nil, fmt.Errorf("list members: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]models.FamilyMember, 0)
+	for rows.Next() {
+		var m models.FamilyMember
+		var role string
+		if err := rows.Scan(&m.ID, &m.Name, &role, &m.Color); err != nil {
+			return nil, err
+		}
+		if m.Color == "" {
+			m.Color = DefaultColorFor(m.Name)
+		}
+		m.Role = models.Role(role)
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+// --- scanners ---
 
 type rowScanner interface {
 	Scan(dest ...any) error
@@ -249,22 +413,79 @@ func scanTask(r rowScanner) (*models.Task, error) {
 		updatedS string
 	)
 	if err := r.Scan(
-		&t.ID, &t.Title, &t.Description, &t.Assignee, &t.CreatedBy,
-		&status, &createdS, &updatedS,
+		&t.ID, &t.FamilyID, &t.Title, &t.Description, &t.Assignee, &t.CreatedBy,
+		&status, &t.StatusUpdatedBy, &createdS, &updatedS,
 	); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 	t.Status = models.Status(status)
-
-	created, err := time.Parse(timeLayout, createdS)
-	if err != nil {
+	var err error
+	if t.CreatedAt, err = time.Parse(timeLayout, createdS); err != nil {
 		return nil, fmt.Errorf("parse created_at: %w", err)
 	}
-	updated, err := time.Parse(timeLayout, updatedS)
-	if err != nil {
+	if t.UpdatedAt, err = time.Parse(timeLayout, updatedS); err != nil {
 		return nil, fmt.Errorf("parse updated_at: %w", err)
 	}
-	t.CreatedAt = created
-	t.UpdatedAt = updated
 	return &t, nil
+}
+
+func scanUser(r rowScanner) (*models.User, error) {
+	var (
+		u        models.User
+		role     string
+		createdS string
+	)
+	if err := r.Scan(&u.ID, &u.Name, &u.Color, &u.FamilyID, &role, &createdS); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	if u.Color == "" {
+		u.Color = DefaultColorFor(u.Name)
+	}
+	u.Role = models.Role(role)
+	t, err := time.Parse(timeLayout, createdS)
+	if err != nil {
+		return nil, fmt.Errorf("parse user.created_at: %w", err)
+	}
+	u.CreatedAt = t
+	return &u, nil
+}
+
+func scanFamily(r rowScanner) (*models.Family, error) {
+	var (
+		f        models.Family
+		createdS string
+	)
+	if err := r.Scan(&f.ID, &f.Name, &f.InviteCode, &f.CreatedBy, &createdS); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	t, err := time.Parse(timeLayout, createdS)
+	if err != nil {
+		return nil, fmt.Errorf("parse family.created_at: %w", err)
+	}
+	f.CreatedAt = t
+	return &f, nil
+}
+
+// --- helpers ---
+
+func generateInviteCode() string {
+	const alphabet = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+	b := make([]byte, 8)
+	if _, err := rand.Read(b); err != nil {
+		return strings.ToUpper(strings.ReplaceAll(uuid.NewString(), "-", ""))[:8]
+	}
+	out := make([]byte, 8)
+	for i := range b {
+		out[i] = alphabet[int(b[i])%len(alphabet)]
+	}
+	return string(out)
 }

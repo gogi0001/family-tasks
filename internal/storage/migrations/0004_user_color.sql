@@ -1,0 +1,3 @@
+ALTER TABLE users ADD COLUMN color TEXT NOT NULL DEFAULT '';
+
+ALTER TABLE tasks ADD COLUMN status_updated_by TEXT;
