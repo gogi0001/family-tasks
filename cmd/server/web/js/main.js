@@ -10,8 +10,11 @@ checkDom();
 
 // --- Реакции на события ---
 
+// import * as tasks from './tasks.js';
+
 on('unauthorized', () => {
   log('event: unauthorized — reset');
+  tasks.closeAddModal();          // ← добавили
   state.user = null;
   state.family = null;
   state.tasks = [];
@@ -23,6 +26,7 @@ on('unauthorized', () => {
 
 on('logged-out', () => {
   log('event: logged-out');
+  tasks.closeAddModal();          // ← добавили
   state.family = null;
   state.tasks = [];
   user.renderUser();

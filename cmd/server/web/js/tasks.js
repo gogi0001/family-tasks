@@ -11,6 +11,26 @@ const STATUSES = [
   { key: 'done',        label: 'Готово' },
 ];
 
+// --- Модалка добавления ---
+
+export function openAddModal() {
+  els.addTaskModal.classList.add('open');
+  setTimeout(() => els.title.focus(), 0);
+}
+
+export function closeAddModal() {
+  els.addTaskModal.classList.remove('open');
+  els.title.value = '';
+  els.description.value = '';
+  // assignee не сбрасываем — удобно добавлять несколько задач одному человеку
+}
+
+function isAddModalOpen() {
+  return els.addTaskModal.classList.contains('open');
+}
+
+// --- Загрузка и рендер ---
+
 export async function load() {
   if (!state.family) { state.tasks = []; render(); return; }
   try {
@@ -107,7 +127,26 @@ export function render() {
   for (const t of state.tasks) els.tasks.appendChild(renderTask(t));
 }
 
+// --- Init ---
+
 export function init() {
+  // FAB — открыть модалку
+  els.addTaskFab.addEventListener('click', openAddModal);
+
+  // Отмена / закрытие
+  els.addTaskCancel.addEventListener('click', closeAddModal);
+
+  // Клик по затемнению вне формы
+  els.addTaskModal.addEventListener('click', (e) => {
+    if (e.target === els.addTaskModal) closeAddModal();
+  });
+
+  // Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isAddModalOpen()) closeAddModal();
+  });
+
+  // Submit
   els.form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!state.user)  { emit('unauthorized'); return; }
@@ -125,14 +164,11 @@ export function init() {
         method: 'POST',
         body: JSON.stringify({ title, description, assignee }),
       });
-      els.title.value = '';
-      els.description.value = '';
-      els.assignee.value = '';
-      els.title.focus();
+      closeAddModal();
       await load();
-    } catch (e) {
-      if (e.status === 401) return;
-      toast(e.message, 'error');
+    } catch (err) {
+      if (err.status === 401) return;
+      toast(err.message, 'error');
     }
   });
 }

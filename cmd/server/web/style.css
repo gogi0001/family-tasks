@@ -1,3 +1,4 @@
+/* --- Reset & variables --- */
 * { box-sizing: border-box; }
 
 :root {
@@ -11,6 +12,11 @@
   --ok: #1e9e4a;
 }
 
+/* Глобальное правило: любой [hidden] скрыт, что бы ни говорил `display`.
+   Страхует от классической ловушки, когда авторский `display: flex/grid`
+   перебивает браузерный `[hidden] { display: none }`. */
+[hidden] { display: none !important; }
+
 html, body { margin: 0; }
 
 body {
@@ -21,6 +27,7 @@ body {
   padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
 }
 
+/* --- Header --- */
 header {
   position: sticky; top: 0; z-index: 10;
   display: flex; justify-content: space-between; align-items: center; gap: 12px;
@@ -30,118 +37,45 @@ header {
 }
 h1 { font-size: 18px; margin: 0; }
 
-.me { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); }
-.me input {
-  width: 110px; padding: 6px 8px; font: inherit; font-size: 14px;
-  border: 1px solid var(--border); border-radius: 8px;
+.who {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; color: var(--muted);
 }
 
-main { max-width: 720px; margin: 0 auto; padding: 12px 16px 32px; }
-
-#add-form {
-  display: grid; gap: 8px; margin-bottom: 16px; padding: 12px;
-  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-}
-#add-form input {
-  padding: 10px 12px; font: inherit;
-  border: 1px solid var(--border); border-radius: 8px; background: #fff;
-}
-#add-form input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-#add-form button {
-  padding: 12px; font: inherit; font-weight: 600; cursor: pointer;
-  border: none; border-radius: 8px;
-  background: var(--accent); color: #fff;
-}
-#add-form button:active { filter: brightness(0.95); }
-
-#tasks { display: grid; gap: 12px; }
-
-.task {
-  display: grid; gap: 8px; padding: 12px;
-  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-}
-.task[data-status="done"] .task-title { text-decoration: line-through; color: var(--muted); }
-
-.task-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-.task-title { margin: 0; font-size: 16px; font-weight: 600; word-break: break-word; }
-.task-desc { margin: 0; font-size: 14px; color: var(--muted); white-space: pre-wrap; word-break: break-word; }
-
-.icon-btn {
-  padding: 4px 8px; font-size: 20px; line-height: 1;
-  color: var(--muted); background: transparent; border: none; border-radius: 6px;
+#who-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: none; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 15px; color: #fff;
   cursor: pointer;
 }
-.icon-btn:active { background: var(--bg); }
 
-.task-meta { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip {
-  display: inline-block; padding: 3px 8px;
-  font-size: 13px; border-radius: 999px;
-  background: var(--bg); color: var(--text);
-}
-.chip.muted { color: var(--muted); }
-
-.statuses { display: flex; gap: 6px; }
-.status-btn {
-  flex: 1; padding: 8px 6px; font: inherit; font-size: 13px;
-  color: var(--muted); background: #fff;
-  border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
-}
-.status-btn.active { color: #fff; border-color: transparent; }
-.status-btn[data-status="todo"].active        { background: #6b7280; }
-.status-btn[data-status="in_progress"].active { background: #d99000; }
-.status-btn[data-status="done"].active        { background: var(--ok); }
-
-#empty { padding: 24px 0; text-align: center; color: var(--muted); }
-
-#toast {
-  position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
-  padding: 10px 16px; font-size: 14px; max-width: 90vw;
-  background: #14161a; color: #fff; border-radius: 8px; z-index: 100;
-}
-#toast.error { background: var(--err); }
-
-.who { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
 #who-logout {
   padding: 2px 8px; font-size: 16px; line-height: 1;
-  color: var(--muted); background: transparent; border: 1px solid var(--border);
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
   border-radius: 6px; cursor: pointer;
 }
 #who-logout:active { background: var(--bg); }
 
-#name-modal {
-  display: none;                    /* по умолчанию скрыта */
-  position: fixed; inset: 0; z-index: 200;
-  background: rgba(20,22,26,0.4);
-  align-items: center; justify-content: center;
-  padding: 16px;
-}
-#name-modal.open { display: flex; } /* показать, когда JS добавит .open */
+/* --- Main --- */
+main { max-width: 720px; margin: 0 auto; padding: 12px 16px 96px; }
 
-#name-modal form {
-  width: 100%; max-width: 320px;
-  background: var(--card); border-radius: 12px; padding: 20px;
-  display: grid; gap: 12px;
-}
-#name-modal h2 { margin: 0; font-size: 18px; }
-#name-modal input {
-  padding: 10px 12px; font: inherit;
-  border: 1px solid var(--border); border-radius: 8px;
-}
-#name-modal button {
-  padding: 12px; font: inherit; font-weight: 600; cursor: pointer;
-  color: #fff; background: var(--accent); border: none; border-radius: 8px;
-}
-#name-modal[hidden] { display: none; }
+/* --- Family box --- */
 .family-head {
   display: flex; justify-content: space-between; align-items: center; gap: 8px;
   margin-bottom: 8px;
 }
 #family-box {
   margin-bottom: 16px; padding: 12px;
-  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
 }
+
+/* --- Family gate --- */
 #family-gate { display: grid; gap: 12px; }
 .card {
   padding: 12px; background: var(--card);
@@ -157,18 +91,177 @@ main { max-width: 720px; margin: 0 auto; padding: 12px 16px 32px; }
   padding: 10px; font: inherit; font-weight: 600; cursor: pointer;
   color: #fff; background: var(--accent); border: none; border-radius: 8px;
 }
-.who { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
 
-#who-avatar {
-  width: 32px; height: 32px;
+/* --- Tasks list --- */
+#tasks { display: grid; gap: 12px; }
+
+.task {
+  display: grid; gap: 8px; padding: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.task[data-status="done"] .task-title {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.task-head {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+}
+.task-title {
+  margin: 0; font-size: 16px; font-weight: 600;
+  word-break: break-word;
+}
+.task-desc {
+  margin: 0; font-size: 14px; color: var(--muted);
+  white-space: pre-wrap; word-break: break-word;
+}
+
+.icon-btn {
+  padding: 4px 8px; font-size: 20px; line-height: 1;
+  color: var(--muted); background: transparent;
+  border: none; border-radius: 6px; cursor: pointer;
+}
+.icon-btn:active { background: var(--bg); }
+
+.task-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-block; padding: 3px 8px;
+  font-size: 13px; border-radius: 999px;
+  background: var(--bg); color: var(--text);
+}
+.chip.muted { color: var(--muted); }
+.chip .dot {
+  display: inline-block;
+  width: 8px; height: 8px;
   border-radius: 50%;
-  border: none; padding: 0;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* --- Status buttons --- */
+.statuses { display: flex; gap: 6px; }
+.status-btn {
+  flex: 1; padding: 8px 6px;
+  font: inherit; font-size: 13px;
+  color: var(--muted);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer;
+}
+.status-btn.active { color: #fff; border-color: transparent; }
+.status-btn[data-status="todo"].active        { background: #6b7280; }
+.status-btn[data-status="in_progress"].active { background: #d99000; }
+.status-btn[data-status="done"].active        { background: var(--ok); }
+
+#empty { padding: 24px 0; text-align: center; color: var(--muted); }
+
+/* --- FAB --- */
+#add-task-fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 28px; line-height: 1; font-weight: 300;
+  padding: 0;
+  cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 15px; color: #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+  z-index: 90;
+}
+#add-task-fab:active { filter: brightness(0.95); }
+
+/* --- Modal: add task --- */
+#add-task-modal {
+  display: none;
+  position: fixed; inset: 0; z-index: 200;
+  align-items: center; justify-content: center;
+  background: rgba(20,22,26,0.4);
+  padding: 16px;
+}
+#add-task-modal.open { display: flex; }
+
+#add-task-modal form {
+  width: 100%; max-width: 380px;
+  background: var(--card);
+  border-radius: 12px; padding: 20px;
+  display: grid; gap: 12px;
+}
+#add-task-modal h2 { margin: 0 0 4px; font-size: 18px; }
+
+#add-task-modal input,
+#add-task-modal select {
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+}
+#add-task-modal input:focus,
+#add-task-modal select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+.modal-actions button {
+  padding: 11px;
+  font: inherit; font-weight: 600;
+  border-radius: 8px; cursor: pointer;
+}
+#add-task-cancel {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+#add-task-modal button[type="submit"] {
+  background: var(--accent); color: #fff; border: none;
+}
+#add-task-modal button[type="submit"]:active,
+#add-task-cancel:active { filter: brightness(0.95); }
+
+/* --- Modal: name --- */
+#name-modal {
+  display: none;
+  position: fixed; inset: 0; z-index: 200;
+  align-items: center; justify-content: center;
+  background: rgba(20,22,26,0.4);
+  padding: 16px;
+}
+#name-modal.open { display: flex; }
+
+#name-modal form {
+  width: 100%; max-width: 320px;
+  background: var(--card);
+  border-radius: 12px; padding: 20px;
+  display: grid; gap: 12px;
+}
+#name-modal h2 { margin: 0; font-size: 18px; }
+#name-modal input {
+  padding: 10px 12px; font: inherit;
+  border: 1px solid var(--border); border-radius: 8px;
+}
+#name-modal button {
+  padding: 12px;
+  font: inherit; font-weight: 600;
+  color: #fff; background: var(--accent);
+  border: none; border-radius: 8px;
   cursor: pointer;
 }
-#who-avatar[hidden] { display: none; }
 
+/* --- Color picker --- */
 #color-picker {
   position: fixed;
   top: calc(56px + env(safe-area-inset-top));
@@ -180,8 +273,6 @@ main { max-width: 720px; margin: 0 auto; padding: 12px 16px 32px; }
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.12);
 }
-#color-picker[hidden] { display: none; }
-
 #color-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -198,23 +289,15 @@ main { max-width: 720px; margin: 0 auto; padding: 12px 16px 32px; }
   outline-offset: 2px;
 }
 
-#add-form select {
-  padding: 10px 12px;
-  font: inherit;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--text);
+/* --- Toast --- */
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(88px + env(safe-area-inset-bottom));   /* выше FAB */
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  font-size: 14px; max-width: 90vw;
+  background: #14161a; color: #fff;
+  border-radius: 8px; z-index: 300;
 }
-
-.chip .dot {
-  display: inline-block;
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  margin-right: 6px;
-  vertical-align: middle;
-}
-
-#family-gate[hidden] { display: none; }
-#tasks-area[hidden]  { display: none; }
-#family-box[hidden]  { display: none; }
+#toast.error { background: var(--err); }

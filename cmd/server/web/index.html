@@ -20,7 +20,6 @@
   </header>
 
   <main>
-    <!-- Семья -->
     <section id="family-box" hidden>
       <div class="family-head">
         <span id="family-name"></span>
@@ -29,7 +28,6 @@
       <div id="family-members" class="task-meta"></div>
     </section>
 
-    <!-- Нет семьи: создать / присоединиться -->
     <section id="family-gate" hidden>
       <div class="card">
         <h2>Создать семью</h2>
@@ -51,25 +49,34 @@
       </div>
     </section>
 
-    <!-- Задачи -->
     <div id="tasks-area" hidden>
-      <form id="add-form">
-        <input id="title"
-               placeholder="Что сделать?"
-               required maxlength="200">
-        <select id="assignee" required></select>
-        <input id="description"
-               placeholder="Детали (необязательно)"
-               maxlength="500">
-        <button type="submit">Добавить</button>
-      </form>
-
       <section id="tasks"></section>
       <p id="empty" hidden>Пока задач нет.</p>
     </div>
   </main>
 
-  <!-- Модалка "Как тебя зовут?" -->
+  <!-- Плавающая кнопка добавления -->
+  <button id="add-task-fab" type="button" title="Добавить задачу" hidden>+</button>
+
+  <!-- Модалка добавления задачи -->
+  <div id="add-task-modal">
+    <form id="add-form">
+      <h2>Новая задача</h2>
+      <input id="title"
+             placeholder="Что сделать?"
+             required maxlength="200">
+      <select id="assignee" required></select>
+      <input id="description"
+             placeholder="Детали (необязательно)"
+             maxlength="500">
+      <div class="modal-actions">
+        <button type="button" id="add-task-cancel">Отмена</button>
+        <button type="submit">Добавить</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Модалка имени -->
   <div id="name-modal">
     <form id="name-form">
       <h2>Как тебя зовут?</h2>
@@ -82,7 +89,7 @@
     </form>
   </div>
 
-  <!-- Палитра цветов (скрыта, показывается по клику на аватарку) -->
+  <!-- Палитра -->
   <div id="color-picker" hidden>
     <div id="color-grid"></div>
   </div>

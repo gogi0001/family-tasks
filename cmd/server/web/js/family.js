@@ -23,9 +23,11 @@ export async function enterFamilyFlow() {
 
 export function renderFamily() {
   const has = !!state.family;
-  els.familyBox.hidden = !has;
-  els.tasksArea.hidden = !has;
+
+  els.familyBox.hidden  = !has;
+  els.tasksArea.hidden  = !has;
   els.familyGate.hidden = has;
+  els.addTaskFab.hidden = !has;    // ← вот это показывает/скрывает FAB
 
   if (!has) {
     els.familyMembers.replaceChildren();
