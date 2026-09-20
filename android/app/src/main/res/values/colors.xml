@@ -1,0 +1,8 @@
+<resources>
+    <color name="primary">#2a6df4</color>
+    <color name="primary_dark">#1c4fb8</color>
+    <color name="background">#f5f6f8</color>
+    <color name="text">#14161a</color>
+    <color name="ic_launcher_background">#2a6df4</color>
+    <color name="ic_launcher_foreground">#ffffff</color>
+</resources>

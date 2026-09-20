@@ -1,5 +1,110 @@
+# ─── Go ──────────────────────────────────────────────
+# Скомпилированные бинарники
 /server
 /server.exe
-*.log
+/*.exe
+/*.test
+/*.out
+
+# Артефакты сборки
+/bin/
+/dist/
+
+# Профилирование и покрытие
+*.prof
+*.test
+*.cover
+coverage.out
+coverage.html
+
+# ─── Данные приложения ───────────────────────────────
+# Локальная SQLite (в проде будет рядом с бинарником)
+/data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# ─── Окружение и секреты ─────────────────────────────
 .env
-data/
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ─── Логи ────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Node (если когда-нибудь пригодится) ─────────────
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ─── Android ─────────────────────────────────────────
+android/.gradle/
+android/build/
+android/app/build/
+android/captures/
+android/local.properties
+android/.idea/
+android/*.iml
+android/.cxx/
+android/app/release/
+android/app/debug/
+
+# Gradle wrapper частично исключаем — jar и properties нужны
+!android/gradle/wrapper/gradle-wrapper.jar
+!android/gradle/wrapper/gradle-wrapper.properties
+
+# APK/AAB — не в гит, публикуем отдельно
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Keystore — НИКОГДА в гит
+*.jks
+*.keystore
+keystore.properties
+
+# ─── IDE / редакторы ─────────────────────────────────
+# VS Code: держим только рекомендованные расширения
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/extensions.json
+
+# JetBrains (GoLand, IntelliJ, WebStorm, Android Studio)
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Vim / Emacs
+*.swp
+*.swo
+*~
+\#*\#
+.\#*
+
+# ─── OS ──────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ─── Прочее ──────────────────────────────────────────
+*.tmp
+*.bak
+tmp/
+temp/

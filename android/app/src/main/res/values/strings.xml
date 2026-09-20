@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Семейные задачи</string>
+    <string name="settings_title">Настройки</string>
+    <string name="settings_server_url">Адрес сервера</string>
+    <string name="settings_server_hint">http://192.168.1.10:8787</string>
+    <string name="settings_save">Сохранить</string>
+    <string name="settings_cancel">Отмена</string>
+    <string name="settings_reset">Сбросить</string>
+    <string name="menu_settings">Настройки</string>
+    <string name="menu_reload">Перезагрузить</string>
+    <string name="error_no_server">Сервер не настроен. Откройте настройки.</string>
+    <string name="error_bad_url">Некорректный адрес: %1$s</string>
+</resources>
