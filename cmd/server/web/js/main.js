@@ -2,19 +2,19 @@ import { state } from './state.js';
 import { checkDom, log } from './dom.js';
 import { api } from './api.js';
 import { on } from './events.js';
-import * as user   from './user.js';
-import * as family from './family.js';
-import * as tasks  from './tasks.js';
+import { toast } from './toast.js';
+import * as user       from './user.js';
+import * as family     from './family.js';
+import * as tasks      from './tasks.js';
+import * as connection from './connection.js';
 
 checkDom();
 
 // --- Реакции на события ---
 
-// import * as tasks from './tasks.js';
-
 on('unauthorized', () => {
   log('event: unauthorized — reset');
-  tasks.closeAddModal();          // ← добавили
+  tasks.closeAddModal();
   state.user = null;
   state.family = null;
   state.tasks = [];
@@ -26,7 +26,7 @@ on('unauthorized', () => {
 
 on('logged-out', () => {
   log('event: logged-out');
-  tasks.closeAddModal();          // ← добавили
+  tasks.closeAddModal();
   state.family = null;
   state.tasks = [];
   user.renderUser();
@@ -54,10 +54,30 @@ on('user-updated', () => {
   tasks.render();
 });
 
+on('connection-changed', async (online) => {
+  log('event: connection-changed →', online ? 'online' : 'offline');
+  state.online = online;
+  connection.renderConnection();
+
+  if (!online) return;
+
+  // Связь вернулась — догоняем состояние.
+  toast('Связь восстановлена', 'info');
+  try {
+    state.user = await api('/me');
+    user.renderUser();
+    await family.enterFamilyFlow();
+  } catch (e) {
+    if (e.status === 401) user.showNameModal();
+    // network error — снова уйдём в offline, следующий reconnect попробует опять
+  }
+});
+
 // --- Init ---
 user.init();
 family.init();
 tasks.init();
+connection.renderConnection();
 
 // --- Boot ---
 async function boot() {
@@ -67,15 +87,38 @@ async function boot() {
     await family.enterFamilyFlow();
     startPolling();
   } catch (e) {
-    if (e.status === 401) user.showNameModal();
-    else console.error('[app] boot failed', e);
+    if (e.status === 401)      user.showNameModal();
+    else if (e.status === 0)   { /* offline — ждём восстановления */ }
+    else                       console.error('[app] boot failed', e);
   }
 }
 
+// --- Refresh ---
 let pollTimer = null;
+let lastRefreshAt = 0;
+
+function refreshIfStale(minIntervalMs = 1000) {
+  const now = Date.now();
+  if (now - lastRefreshAt < minIntervalMs) return;
+  lastRefreshAt = now;
+  tasks.load();
+}
+
 function startPolling() {
   if (pollTimer) return;
-  pollTimer = setInterval(() => { if (!document.hidden) tasks.load(); }, 5000);
+  log('startPolling: every 5s + on visibility/focus');
+
+  pollTimer = setInterval(() => {
+    if (!document.hidden) refreshIfStale(3000);
+  }, 5000);
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshIfStale();
+  });
+
+  window.addEventListener('focus', () => {
+    refreshIfStale();
+  });
 }
 
 boot();

@@ -19,6 +19,7 @@ export const els = {
     familyBox:     $('family-box'),
     familyName:    $('family-name'),
     familyCode:    $('family-code'),
+    familyRegen: $('family-regen'),
     familyMembers: $('family-members'),
     familyGate:    $('family-gate'),
     createForm:    $('family-create-form'),
@@ -35,14 +36,20 @@ export const els = {
     addTaskModal:  $('add-task-modal'),
     addTaskCancel: $('add-task-cancel'),
   
+    taskFilter:   $('task-filter'),
+    taskSort:     $('task-sort'),
+    due:          $('due'),
+
     form:         $('add-form'),
     title:        $('title'),
     assignee:     $('assignee'),
     description:  $('description'),
   
     toast:        $('toast'),
+    connBadge:    $('conn-badge'),
+    connText:     $('conn-text'),
   };
-  
+
 export function checkDom() {
   const missing = Object.entries(els).filter(([, v]) => !v).map(([k]) => k);
   if (missing.length) err('DOM: missing:', missing.join(', '));

@@ -154,7 +154,9 @@ func splitStatements(sql string) []string {
 func (s *SQLite) List(ctx context.Context, familyID string) ([]*models.Task, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT id, COALESCE(family_id, ''), title, description, assignee, created_by,
-		       status, COALESCE(status_updated_by, ''), created_at, updated_at
+		       status, COALESCE(status_updated_by, ''),
+		       status_updated_at, due_at,
+		       created_at, updated_at
 		FROM tasks
 		WHERE family_id = ?
 		ORDER BY created_at ASC
@@ -181,7 +183,9 @@ func (s *SQLite) List(ctx context.Context, familyID string) ([]*models.Task, err
 func (s *SQLite) Get(ctx context.Context, familyID, id string) (*models.Task, error) {
 	row := s.db.QueryRowContext(ctx, `
 		SELECT id, COALESCE(family_id, ''), title, description, assignee, created_by,
-		       status, COALESCE(status_updated_by, ''), created_at, updated_at
+		       status, COALESCE(status_updated_by, ''),
+		       status_updated_at, due_at,
+		       created_at, updated_at
 		FROM tasks
 		WHERE id = ? AND family_id = ?
 	`, id, familyID)
@@ -200,13 +204,22 @@ func (s *SQLite) Create(ctx context.Context, in models.TaskCreate) (*models.Task
 		Status:      models.StatusTodo,
 		CreatedAt:   now,
 		UpdatedAt:   now,
+		DueAt:       in.DueAt,
+	}
+
+	var dueAt sql.NullString
+	if in.DueAt != nil {
+		dueAt = sql.NullString{String: in.DueAt.UTC().Format(timeLayout), Valid: true}
 	}
 
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO tasks (id, family_id, title, description, assignee, created_by, status, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (
+			id, family_id, title, description, assignee, created_by,
+			status, due_at, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`,
-		t.ID, t.FamilyID, t.Title, t.Description, t.Assignee, t.CreatedBy, string(t.Status),
+		t.ID, t.FamilyID, t.Title, t.Description, t.Assignee, t.CreatedBy,
+		string(t.Status), dueAt,
 		t.CreatedAt.Format(timeLayout), t.UpdatedAt.Format(timeLayout),
 	)
 	if err != nil {
@@ -216,8 +229,8 @@ func (s *SQLite) Create(ctx context.Context, in models.TaskCreate) (*models.Task
 }
 
 func (s *SQLite) Update(ctx context.Context, familyID, id, actorID string, req models.UpdateTaskRequest) (*models.Task, error) {
-	sets := make([]string, 0, 6)
-	args := make([]any, 0, 8)
+	sets := make([]string, 0, 8)
+	args := make([]any, 0, 12)
 
 	if req.Title != nil {
 		sets = append(sets, "title = ?")
@@ -232,8 +245,21 @@ func (s *SQLite) Update(ctx context.Context, familyID, id, actorID string, req m
 		args = append(args, *req.Assignee)
 	}
 	if req.Status != nil {
-		sets = append(sets, "status = ?", "status_updated_by = ?")
-		args = append(args, string(*req.Status), actorID)
+		now := time.Now().UTC()
+		sets = append(sets, "status = ?", "status_updated_by = ?", "status_updated_at = ?")
+		args = append(args, string(*req.Status), actorID, now.Format(timeLayout))
+	}
+	if req.DueAt != nil {
+		if *req.DueAt == "" {
+			sets = append(sets, "due_at = NULL")
+		} else {
+			parsed, err := time.Parse(time.RFC3339, *req.DueAt)
+			if err != nil {
+				return nil, fmt.Errorf("parse dueAt: %w", err)
+			}
+			sets = append(sets, "due_at = ?")
+			args = append(args, parsed.UTC().Format(timeLayout))
+		}
 	}
 	sets = append(sets, "updated_at = ?")
 	args = append(args, time.Now().UTC().Format(timeLayout))
@@ -407,14 +433,16 @@ type rowScanner interface {
 
 func scanTask(r rowScanner) (*models.Task, error) {
 	var (
-		t        models.Task
-		status   string
-		createdS string
-		updatedS string
+		t           models.Task
+		status      string
+		statusUpdAt sql.NullString
+		dueAt       sql.NullString
+		createdS    string
+		updatedS    string
 	)
 	if err := r.Scan(
 		&t.ID, &t.FamilyID, &t.Title, &t.Description, &t.Assignee, &t.CreatedBy,
-		&status, &t.StatusUpdatedBy, &createdS, &updatedS,
+		&status, &t.StatusUpdatedBy, &statusUpdAt, &dueAt, &createdS, &updatedS,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
@@ -422,12 +450,32 @@ func scanTask(r rowScanner) (*models.Task, error) {
 		return nil, err
 	}
 	t.Status = models.Status(status)
-	var err error
-	if t.CreatedAt, err = time.Parse(timeLayout, createdS); err != nil {
+
+	created, err := time.Parse(timeLayout, createdS)
+	if err != nil {
 		return nil, fmt.Errorf("parse created_at: %w", err)
 	}
-	if t.UpdatedAt, err = time.Parse(timeLayout, updatedS); err != nil {
+	t.CreatedAt = created
+
+	updated, err := time.Parse(timeLayout, updatedS)
+	if err != nil {
 		return nil, fmt.Errorf("parse updated_at: %w", err)
+	}
+	t.UpdatedAt = updated
+
+	if statusUpdAt.Valid && statusUpdAt.String != "" {
+		tm, err := time.Parse(timeLayout, statusUpdAt.String)
+		if err != nil {
+			return nil, fmt.Errorf("parse status_updated_at: %w", err)
+		}
+		t.StatusUpdatedAt = &tm
+	}
+	if dueAt.Valid && dueAt.String != "" {
+		tm, err := time.Parse(timeLayout, dueAt.String)
+		if err != nil {
+			return nil, fmt.Errorf("parse due_at: %w", err)
+		}
+		t.DueAt = &tm
 	}
 	return &t, nil
 }
@@ -488,4 +536,29 @@ func generateInviteCode() string {
 		out[i] = alphabet[int(b[i])%len(alphabet)]
 	}
 	return string(out)
+}
+
+func (s *SQLite) RegenerateInviteCode(ctx context.Context, familyID string) (string, error) {
+	code := generateInviteCode()
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE families SET invite_code = ? WHERE id = ?`, code, familyID)
+	if err != nil {
+		return "", fmt.Errorf("regenerate invite: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return "", ErrNotFound
+	}
+	return code, nil
+}
+
+func (s *SQLite) RemoveFromFamily(ctx context.Context, userID string) error {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE users SET family_id = NULL, role = NULL WHERE id = ?`, userID)
+	if err != nil {
+		return fmt.Errorf("remove from family: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gogi0001/family-tasks/internal/models"
 	"github.com/gogi0001/family-tasks/internal/storage"
@@ -28,6 +29,18 @@ func requireFamily(w http.ResponseWriter, r *http.Request) (*models.User, bool) 
 		return nil, false
 	}
 	return u, true
+}
+
+func parseDueAt(s string) (*time.Time, error) {
+	if s == "" {
+		return nil, nil
+	}
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return nil, err
+	}
+	u := t.UTC()
+	return &u, nil
 }
 
 func (h *tasksHandler) list(w http.ResponseWriter, r *http.Request) {
@@ -72,12 +85,19 @@ func (h *tasksHandler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	due, err := parseDueAt(req.DueAt)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid dueAt (expected RFC3339)")
+		return
+	}
+
 	t, err := h.store.Create(r.Context(), models.TaskCreate{
 		FamilyID:    u.FamilyID,
 		Title:       req.Title,
 		Description: req.Description,
 		Assignee:    req.Assignee,
 		CreatedBy:   u.Name,
+		DueAt:       due,
 	})
 	if err != nil {
 		slog.ErrorContext(r.Context(), "create task", "err", err, "family_id", u.FamilyID)
@@ -137,6 +157,13 @@ func (h *tasksHandler) update(w http.ResponseWriter, r *http.Request) {
 		req.Description = &v
 	}
 
+	if req.DueAt != nil && *req.DueAt != "" {
+		if _, err := time.Parse(time.RFC3339, *req.DueAt); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid dueAt (expected RFC3339)")
+			return
+		}
+	}
+
 	t, err := h.store.Update(r.Context(), u.FamilyID, r.PathValue("id"), u.ID, req)
 	if err != nil {
 		writeStoreError(w, r, err)
@@ -150,7 +177,19 @@ func (h *tasksHandler) delete(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if err := h.store.Delete(r.Context(), u.FamilyID, r.PathValue("id")); err != nil {
+	id := r.PathValue("id")
+
+	t, err := h.store.Get(r.Context(), u.FamilyID, id)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	if u.Role != models.RoleOwner && t.CreatedBy != u.Name {
+		writeError(w, http.StatusForbidden, "only owner or author can delete this task")
+		return
+	}
+
+	if err := h.store.Delete(r.Context(), u.FamilyID, id); err != nil {
 		writeStoreError(w, r, err)
 		return
 	}

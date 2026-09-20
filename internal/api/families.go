@@ -116,3 +116,75 @@ func (h *familyHandler) me(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, models.FamilyView{Family: *f, Members: members})
 }
+
+// DELETE /api/v1/families/members/{id}
+func (h *familyHandler) removeMember(w http.ResponseWriter, r *http.Request) {
+	u, ok := requireFamily(w, r)
+	if !ok {
+		return
+	}
+
+	targetID := strings.TrimSpace(r.PathValue("id"))
+	if targetID == "" {
+		writeError(w, http.StatusBadRequest, "member id is required")
+		return
+	}
+
+	isSelf := targetID == u.ID
+	isOwner := u.Role == models.RoleOwner
+
+	// Member может удалить только себя. Owner — любого, но не себя.
+	if !isSelf && !isOwner {
+		writeError(w, http.StatusForbidden, "only owner can remove other members")
+		return
+	}
+	if isSelf && isOwner {
+		writeError(w, http.StatusBadRequest, "owner cannot leave; transfer ownership first")
+		return
+	}
+
+	target, err := h.users.GetUser(r.Context(), targetID)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	if target.FamilyID != u.FamilyID {
+		writeError(w, http.StatusNotFound, "member not found")
+		return
+	}
+
+	if err := h.users.RemoveFromFamily(r.Context(), targetID); err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// POST /api/v1/families/invite/regenerate
+func (h *familyHandler) regenerateCode(w http.ResponseWriter, r *http.Request) {
+	u, ok := requireFamily(w, r)
+	if !ok {
+		return
+	}
+	if u.Role != models.RoleOwner {
+		writeError(w, http.StatusForbidden, "only owner can regenerate invite code")
+		return
+	}
+
+	if _, err := h.families.RegenerateInviteCode(r.Context(), u.FamilyID); err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+
+	f, err := h.families.GetFamilyByID(r.Context(), u.FamilyID)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	members, err := h.families.FamilyMembers(r.Context(), f.ID)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, models.FamilyView{Family: *f, Members: members})
+}

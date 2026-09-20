@@ -31,10 +31,13 @@ func NewRouter(cfg Config) http.Handler {
 	mux.HandleFunc("POST /api/v1/me", mh.set)
 	mux.HandleFunc("PATCH /api/v1/me", mh.setColor) // ← вот это
 	mux.HandleFunc("DELETE /api/v1/me", mh.logout)
+
 	// --- семьи ---
 	mux.HandleFunc("POST /api/v1/families", fh.create)
 	mux.HandleFunc("POST /api/v1/families/join", fh.join)
 	mux.HandleFunc("GET /api/v1/families/me", fh.me)
+	mux.HandleFunc("DELETE /api/v1/families/members/{id}", fh.removeMember)
+	mux.HandleFunc("POST /api/v1/families/invite/regenerate", fh.regenerateCode)
 
 	// --- задачи ---
 	mux.HandleFunc("GET /api/v1/tasks", th.list)

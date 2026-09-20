@@ -21,16 +21,18 @@ type TaskStore interface {
 	Delete(ctx context.Context, familyID, id string) error
 }
 
-type UserStore interface {
-	GetUser(ctx context.Context, id string) (*models.User, error)
-	FindOrCreateByName(ctx context.Context, name string) (*models.User, error)
-	SetFamily(ctx context.Context, userID, familyID string, role models.Role) error
-	SetColor(ctx context.Context, userID, color string) error
-}
-
 type FamilyStore interface {
 	CreateFamily(ctx context.Context, name, ownerID string) (*models.Family, error)
 	GetFamilyByID(ctx context.Context, id string) (*models.Family, error)
 	GetFamilyByCode(ctx context.Context, code string) (*models.Family, error)
 	FamilyMembers(ctx context.Context, familyID string) ([]models.FamilyMember, error)
+	RegenerateInviteCode(ctx context.Context, familyID string) (string, error)
+}
+
+type UserStore interface {
+	GetUser(ctx context.Context, id string) (*models.User, error)
+	FindOrCreateByName(ctx context.Context, name string) (*models.User, error)
+	SetFamily(ctx context.Context, userID, familyID string, role models.Role) error
+	SetColor(ctx context.Context, userID, color string) error
+	RemoveFromFamily(ctx context.Context, userID string) error
 }

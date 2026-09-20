@@ -9,7 +9,13 @@
 </head>
 <body>
   <header>
-    <h1>Семейные задачи</h1>
+    <div class="brand">
+      <h1>Семейные задачи</h1>
+      <span id="conn-badge" class="conn conn-online" title="Связь с сервером">
+        <span class="conn-dot"></span>
+        <span id="conn-text">онлайн</span>
+      </span>
+    </div>
     <div class="who">
       <button id="who-avatar" type="button" title="Сменить цвет">
         <span id="who-avatar-letter"></span>
@@ -20,14 +26,18 @@
   </header>
 
   <main>
+    <!-- Семья: название, код приглашения, участники -->
     <section id="family-box" hidden>
       <div class="family-head">
         <span id="family-name"></span>
-        <span class="chip muted">код: <b id="family-code"></b></span>
+        <div class="family-code-block">
+          <span class="chip muted">код: <b id="family-code"></b></span>
+          <button id="family-regen" type="button" hidden title="Перевыпустить код">↻</button>
+        </div>
       </div>
       <div id="family-members" class="task-meta"></div>
     </section>
-
+    <!-- Нет семьи: создать / присоединиться -->
     <section id="family-gate" hidden>
       <div class="card">
         <h2>Создать семью</h2>
@@ -49,26 +59,47 @@
       </div>
     </section>
 
+    <!-- Список задач -->
     <div id="tasks-area" hidden>
+      <div class="toolbar">
+        <div class="segmented" id="task-filter">
+          <button type="button" data-filter="all" class="active">Все</button>
+          <button type="button" data-filter="active">Активные</button>
+        </div>
+        <select id="task-sort">
+          <option value="newest">Новые → старые</option>
+          <option value="oldest">Старые → новые</option>
+        </select>
+      </div>
+
       <section id="tasks"></section>
       <p id="empty" hidden>Пока задач нет.</p>
     </div>
   </main>
 
-  <!-- Плавающая кнопка добавления -->
+  <!-- Плавающая кнопка добавления задачи -->
   <button id="add-task-fab" type="button" title="Добавить задачу" hidden>+</button>
 
   <!-- Модалка добавления задачи -->
   <div id="add-task-modal">
     <form id="add-form">
       <h2>Новая задача</h2>
+
       <input id="title"
              placeholder="Что сделать?"
              required maxlength="200">
+
       <select id="assignee" required></select>
+
+      <label class="field">
+        <span class="field-label">Срок (необязательно)</span>
+        <input id="due" type="datetime-local">
+      </label>
+
       <input id="description"
              placeholder="Детали (необязательно)"
              maxlength="500">
+
       <div class="modal-actions">
         <button type="button" id="add-task-cancel">Отмена</button>
         <button type="submit">Добавить</button>
@@ -89,12 +120,13 @@
     </form>
   </div>
 
-  <!-- Палитра -->
+  <!-- Палитра цветов -->
   <div id="color-picker" hidden>
     <div id="color-grid"></div>
   </div>
 
   <div id="toast" hidden></div>
+
   <script type="module" src="/js/main.js"></script>
 </body>
 </html>

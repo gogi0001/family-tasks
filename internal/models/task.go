@@ -19,16 +19,25 @@ func (s Status) Valid() bool {
 }
 
 type Task struct {
-	ID              string    `json:"id"`
-	FamilyID        string    `json:"familyId,omitempty"`
-	Title           string    `json:"title"`
-	Description     string    `json:"description,omitempty"`
-	Assignee        string    `json:"assignee"`
-	CreatedBy       string    `json:"createdBy"`
-	Status          Status    `json:"status"`
-	StatusUpdatedBy string    `json:"statusUpdatedBy,omitempty"`
-	CreatedAt       time.Time `json:"createdAt"`
-	UpdatedAt       time.Time `json:"updatedAt"`
+	ID              string     `json:"id"`
+	FamilyID        string     `json:"familyId,omitempty"`
+	Title           string     `json:"title"`
+	Description     string     `json:"description,omitempty"`
+	Assignee        string     `json:"assignee"`
+	CreatedBy       string     `json:"createdBy"`
+	Status          Status     `json:"status"`
+	StatusUpdatedBy string     `json:"statusUpdatedBy,omitempty"`
+	StatusUpdatedAt *time.Time `json:"statusUpdatedAt,omitempty"`
+	DueAt           *time.Time `json:"dueAt,omitempty"`
+	CreatedAt       time.Time  `json:"createdAt"`
+	UpdatedAt       time.Time  `json:"updatedAt"`
+}
+
+type CreateTaskRequest struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Assignee    string `json:"assignee"`
+	DueAt       string `json:"dueAt,omitempty"` // RFC3339 или пусто (бессрочно)
 }
 
 type TaskCreate struct {
@@ -37,14 +46,7 @@ type TaskCreate struct {
 	Description string
 	Assignee    string
 	CreatedBy   string
-}
-
-// CreateTaskRequest — то, что приходит от клиента по HTTP.
-// CreatedBy отсутствует намеренно: сервер берёт его из сессии.
-type CreateTaskRequest struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Assignee    string `json:"assignee"`
+	DueAt       *time.Time
 }
 
 type UpdateTaskRequest struct {
@@ -52,4 +54,6 @@ type UpdateTaskRequest struct {
 	Description *string `json:"description,omitempty"`
 	Assignee    *string `json:"assignee,omitempty"`
 	Status      *Status `json:"status,omitempty"`
+	// DueAt: nil — не менять, "" — очистить, иначе RFC3339.
+	DueAt *string `json:"dueAt,omitempty"`
 }

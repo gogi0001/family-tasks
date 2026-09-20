@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -72,6 +73,7 @@ func (m *Memory) Create(_ context.Context, in models.TaskCreate) (*models.Task, 
 		Status:      models.StatusTodo,
 		CreatedAt:   now,
 		UpdatedAt:   now,
+		DueAt:       in.DueAt,
 	}
 	m.tasks[t.ID] = t
 	return clone(t), nil
@@ -94,8 +96,22 @@ func (m *Memory) Update(_ context.Context, familyID, id, actorID string, req mod
 		t.Assignee = *req.Assignee
 	}
 	if req.Status != nil {
+		now := time.Now().UTC()
 		t.Status = *req.Status
 		t.StatusUpdatedBy = actorID
+		t.StatusUpdatedAt = &now
+	}
+	if req.DueAt != nil {
+		if *req.DueAt == "" {
+			t.DueAt = nil
+		} else {
+			parsed, err := time.Parse(time.RFC3339, *req.DueAt)
+			if err != nil {
+				return nil, fmt.Errorf("parse dueAt: %w", err)
+			}
+			u := parsed.UTC()
+			t.DueAt = &u
+		}
 	}
 	t.UpdatedAt = time.Now().UTC()
 	return clone(t), nil
@@ -239,3 +255,28 @@ func (m *Memory) FamilyMembers(_ context.Context, familyID string) ([]models.Fam
 // --- helpers ---
 
 func clone(t *models.Task) *models.Task { c := *t; return &c }
+
+func (m *Memory) RegenerateInviteCode(_ context.Context, familyID string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	f, ok := m.families[familyID]
+	if !ok {
+		return "", ErrNotFound
+	}
+	delete(m.byCode, f.InviteCode)
+	f.InviteCode = generateInviteCode()
+	m.byCode[f.InviteCode] = familyID
+	return f.InviteCode, nil
+}
+
+func (m *Memory) RemoveFromFamily(_ context.Context, userID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.users[userID]
+	if !ok {
+		return ErrNotFound
+	}
+	u.FamilyID = ""
+	u.Role = ""
+	return nil
+}

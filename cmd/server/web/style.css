@@ -301,3 +301,106 @@ main { max-width: 720px; margin: 0 auto; padding: 12px 16px 96px; }
   border-radius: 8px; z-index: 300;
 }
 #toast.error { background: var(--err); }
+
+/* Toolbar */
+.toolbar {
+  display: flex; gap: 8px; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.segmented {
+  display: inline-flex;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2px;
+}
+.segmented button {
+  padding: 6px 12px;
+  font: inherit; font-size: 14px;
+  border: none; background: transparent; border-radius: 6px;
+  color: var(--muted); cursor: pointer;
+}
+.segmented button.active {
+  background: var(--accent); color: #fff;
+}
+#task-sort {
+  padding: 6px 10px;
+  font: inherit; font-size: 14px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--card); color: var(--text);
+  cursor: pointer;
+}
+
+/* Поле в форме с меткой */
+#add-task-modal .field {
+  display: grid; gap: 4px;
+}
+#add-task-modal .field-label {
+  font-size: 13px; color: var(--muted);
+}
+
+/* Даты в карточке */
+.task-dates {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  font-size: 12px; color: var(--muted);
+}
+.task-dates .overdue {
+  color: var(--err); font-weight: 600;
+}
+.task-dates .done-muted { color: var(--muted); }
+
+/* --- Connection badge --- */
+.brand { display: flex; align-items: center; gap: 10px; }
+
+.conn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px; border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+  color: #fff;
+  background: var(--muted);
+  transition: background-color .2s ease;
+}
+.conn .conn-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.25);
+}
+.conn-online  { background: var(--ok); }
+.conn-offline { background: var(--err); animation: conn-pulse 1.4s ease-in-out infinite; }
+
+@keyframes conn-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+
+/* На очень узких экранах оставляем только точку */
+@media (max-width: 380px) {
+  #conn-text { display: none; }
+  .conn { padding: 5px; }
+}
+
+/* --- Family: код приглашения и управление участниками --- */
+.family-code-block {
+  display: flex; align-items: center; gap: 6px;
+}
+#family-regen {
+  padding: 3px 8px;
+  font: inherit; font-size: 15px; line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+#family-regen:active { background: var(--bg); }
+
+.chip .chip-remove {
+  margin-left: 6px;
+  padding: 0 4px;
+  font: inherit; font-size: 14px; line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.chip .chip-remove:active { color: var(--err); }
