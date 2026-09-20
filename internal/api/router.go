@@ -9,6 +9,7 @@ import (
 	"github.com/gogi0001/family-tasks/internal/storage"
 )
 
+// Config Структура конфигурации
 type Config struct {
 	WebDir   string
 	Tasks    storage.TaskStore

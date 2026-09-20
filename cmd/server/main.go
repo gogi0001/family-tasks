@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,32 +14,39 @@ import (
 	"time"
 
 	"github.com/gogi0001/family-tasks/internal/api"
+	"github.com/gogi0001/family-tasks/internal/config"
 	"github.com/gogi0001/family-tasks/internal/storage"
 )
 
 func main() {
-	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	})
-	slog.SetDefault(slog.New(handler))
-
-	addr := envOr("ADDR", ":8787")
-	dbPath := envOr("DB_PATH", filepath.Join("data", "tasks.db"))
-
-	webDir, err := resolveWebDir(envOr("WEB_DIR", ""))
+	cfg, err := config.Parse(os.Args[1:])
 	if err != nil {
-		slog.Error("cannot locate web dir", "err", err)
+		if errors.Is(err, flag.ErrHelp) {
+			os.Exit(0)
+		}
+		fmt.Fprintln(os.Stderr, "config error:", err)
+		os.Exit(2)
+	}
+
+	setupLogger(cfg)
+
+	// --- Поиск web/ ---
+	webDir, err := resolveWebDir(cfg.WebDir)
+	if err != nil {
+		slog.Error("cannot locate web dir", "err", err, "web_dir_flag", cfg.WebDir)
 		os.Exit(1)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
-		slog.Error("create db dir", "err", err, "path", dbPath)
+	// --- Подготовка каталога для БД ---
+	if err := os.MkdirAll(filepath.Dir(cfg.DBPath), 0o755); err != nil {
+		slog.Error("create db dir", "err", err, "path", cfg.DBPath)
 		os.Exit(1)
 	}
 
-	store, err := storage.OpenSQLite(dbPath)
+	// --- Хранилище ---
+	store, err := storage.OpenSQLite(cfg.DBPath)
 	if err != nil {
-		slog.Error("open store", "err", err, "path", dbPath)
+		slog.Error("open store", "err", err, "path", cfg.DBPath)
 		os.Exit(1)
 	}
 	defer func() {
@@ -46,10 +55,17 @@ func main() {
 		}
 	}()
 
-	slog.Info("starting server", "addr", addr, "web_dir", webDir, "db_path", dbPath)
+	slog.Info("starting server",
+		"addr", cfg.Addr,
+		"web_dir", webDir,
+		"db_path", cfg.DBPath,
+		"ntfy_enabled", cfg.NtfyEnabled(),
+		"ntfy_url", cfg.NtfyURL,
+		"ntfy_topic", cfg.NtfyTopic,
+	)
 
 	srv := &http.Server{
-		Addr: addr,
+		Addr: cfg.Addr,
 		Handler: api.NewRouter(api.Config{
 			WebDir:   webDir,
 			Tasks:    store,
@@ -81,17 +97,20 @@ func main() {
 
 // --- helpers ---
 
-func envOr(key, def string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
+func setupLogger(cfg *config.Config) {
+	opts := &slog.HandlerOptions{Level: cfg.SlogLevel()}
+
+	var h slog.Handler
+	if cfg.LogFormat == "json" {
+		h = slog.NewJSONHandler(os.Stdout, opts)
+	} else {
+		h = slog.NewTextHandler(os.Stdout, opts)
 	}
-	return def
+	slog.SetDefault(slog.New(h))
 }
 
-// resolveWebDir ищет web-папку:
-//   - если задан WEB_DIR — используется как есть;
-//   - иначе пробуем ./web (запуск из корня), ../../web (запуск из cmd/server),
-//     и web рядом с исполняемым файлом.
+// resolveWebDir: если задан явно — берём как есть.
+// Иначе пробуем ./web, ../../web (запуск из cmd/server), web рядом с бинарником.
 func resolveWebDir(explicit string) (string, error) {
 	candidates := []string{}
 	if explicit != "" {
