@@ -7,6 +7,7 @@ import * as user from './user.js';
 import * as family from './family.js';
 import * as tasks from './tasks.js';
 import * as connection from './connection.js';
+import * as sse from './sse.js';
 
 checkDom();
 
@@ -15,7 +16,8 @@ checkDom();
 on('unauthorized', () => {
   log('event: unauthorized — reset');
   tasks.closeAddModal();
-  family.closeFamilyModal();          // ← новое
+  family.closeFamilyModal();
+  sse.stop();
   state.user = null;
   state.family = null;
   state.tasks = [];
@@ -28,7 +30,8 @@ on('unauthorized', () => {
 on('logged-out', () => {
   log('event: logged-out');
   tasks.closeAddModal();
-  family.closeFamilyModal();          // ← новое
+  family.closeFamilyModal();
+  sse.stop();
   state.family = null;
   state.tasks = [];
   user.renderUser();
@@ -38,20 +41,21 @@ on('logged-out', () => {
 });
 
 on('identified', async () => {
-  log('event: identified — loading family');
+  log('event: identified');
   await family.enterFamilyFlow();
-  startPolling();
+  sse.start();
+  startRefreshFallback();
 });
 
 on('family-updated', async () => {
   log('event: family-updated');
   family.renderFamily();
-  tasks.refreshFilterOptions();   // ← новое
+  tasks.refreshFilterOptions();
   await tasks.load();
 });
 
 on('user-updated', () => {
-  log('event: user-updated — rerender');
+  log('event: user-updated');
   user.renderUser();
   family.renderFamily();
   tasks.render();
@@ -64,42 +68,57 @@ on('connection-changed', async (online) => {
 
   if (!online) return;
 
-  // Связь вернулась — догоняем состояние.
   toast('Связь восстановлена', 'info');
   try {
     state.user = await api('/me');
     user.renderUser();
     await family.enterFamilyFlow();
+    sse.start();
   } catch (e) {
     if (e.status === 401) user.showNameModal();
-    // network error — снова уйдём в offline, следующий reconnect попробует опять
   }
 });
 
+// --- SSE ---
+
+on('sse-event', () => {
+  tasks.load();
+});
+
+on('sse-open', () => {
+  // Догоняем всё, что изменилось, пока не было соединения.
+  tasks.load();
+});
+
 // --- Init ---
+
 user.init();
 family.init();
 tasks.init();
 connection.renderConnection();
 
 // --- Boot ---
+
 async function boot() {
   try {
     state.user = await api('/me');
     user.renderUser();
     await family.enterFamilyFlow();
-    startPolling();
-    handleTaskHash();
-
+    sse.start();
+    startRefreshFallback();
   } catch (e) {
     if (e.status === 401) user.showNameModal();
-    else if (e.status === 0) { /* offline — ждём восстановления */ }
+    else if (e.status === 0) { /* offline */ }
     else console.error('[app] boot failed', e);
   }
 }
 
-// --- Refresh ---
-let pollTimer = null;
+// --- Refresh fallback ---
+// SSE даёт мгновенные обновления. Раз в 60 секунд обновляемся на всякий
+// случай, плюс при возврате во вкладку/окно. Если SSE не работает —
+// данные всё равно будут свежими.
+
+let refreshTimer = null;
 let lastRefreshAt = 0;
 
 function refreshIfStale(minIntervalMs = 1000) {
@@ -109,13 +128,13 @@ function refreshIfStale(minIntervalMs = 1000) {
   tasks.load();
 }
 
-function startPolling() {
-  if (pollTimer) return;
-  log('startPolling: every 5s + on visibility/focus');
+function startRefreshFallback() {
+  if (refreshTimer) return;
+  log('refresh fallback: 60s + visibility/focus');
 
-  pollTimer = setInterval(() => {
-    if (!document.hidden) refreshIfStale(3000);
-  }, 5000);
+  refreshTimer = setInterval(() => {
+    if (!document.hidden) refreshIfStale(30000);
+  }, 60000);
 
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) refreshIfStale();
@@ -125,16 +144,5 @@ function startPolling() {
     refreshIfStale();
   });
 }
-// --- Deep link: #task=<id> ---
-
-function handleTaskHash() {
-  const m = location.hash.match(/(?:^#|&)task=([^&]+)/);
-  if (!m) return;
-  const id = decodeURIComponent(m[1]);
-  log('deep link: task =', id);
-  tasks.highlightTask(id);
-}
-
-window.addEventListener('hashchange', handleTaskHash);
 
 boot();

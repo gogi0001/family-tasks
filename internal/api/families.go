@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gogi0001/family-tasks/internal/events"
 	"github.com/gogi0001/family-tasks/internal/models"
 	"github.com/gogi0001/family-tasks/internal/storage"
 )
@@ -14,6 +15,7 @@ import (
 type familyHandler struct {
 	families storage.FamilyStore
 	users    storage.UserStore
+	events   *events.Hub
 }
 
 func (h *familyHandler) create(w http.ResponseWriter, r *http.Request) {
@@ -51,6 +53,7 @@ func (h *familyHandler) create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	members, _ := h.families.FamilyMembers(r.Context(), f.ID)
+	h.events.Broadcast(f.ID, events.Event{Type: "family.changed"})
 	writeJSON(w, http.StatusCreated, models.FamilyView{Family: *f, Members: members})
 }
 
@@ -91,6 +94,7 @@ func (h *familyHandler) join(w http.ResponseWriter, r *http.Request) {
 	}
 
 	members, _ := h.families.FamilyMembers(r.Context(), f.ID)
+	h.events.Broadcast(f.ID, events.Event{Type: "family.changed"})
 	writeJSON(w, http.StatusOK, models.FamilyView{Family: *f, Members: members})
 }
 
@@ -117,7 +121,6 @@ func (h *familyHandler) me(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, models.FamilyView{Family: *f, Members: members})
 }
 
-// DELETE /api/v1/families/members/{id}
 func (h *familyHandler) removeMember(w http.ResponseWriter, r *http.Request) {
 	u, ok := requireFamily(w, r)
 	if !ok {
@@ -133,7 +136,6 @@ func (h *familyHandler) removeMember(w http.ResponseWriter, r *http.Request) {
 	isSelf := targetID == u.ID
 	isOwner := u.Role == models.RoleOwner
 
-	// Member может удалить только себя. Owner — любого, но не себя.
 	if !isSelf && !isOwner {
 		writeError(w, http.StatusForbidden, "only owner can remove other members")
 		return
@@ -157,10 +159,11 @@ func (h *familyHandler) removeMember(w http.ResponseWriter, r *http.Request) {
 		writeStoreError(w, r, err)
 		return
 	}
+
+	h.events.Broadcast(u.FamilyID, events.Event{Type: "family.changed"})
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// POST /api/v1/families/invite/regenerate
 func (h *familyHandler) regenerateCode(w http.ResponseWriter, r *http.Request) {
 	u, ok := requireFamily(w, r)
 	if !ok {
@@ -186,5 +189,6 @@ func (h *familyHandler) regenerateCode(w http.ResponseWriter, r *http.Request) {
 		writeStoreError(w, r, err)
 		return
 	}
+	h.events.Broadcast(u.FamilyID, events.Event{Type: "family.changed"})
 	writeJSON(w, http.StatusOK, models.FamilyView{Family: *f, Members: members})
 }

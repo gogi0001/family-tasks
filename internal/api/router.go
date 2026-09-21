@@ -6,54 +6,49 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gogi0001/family-tasks/internal/events"
 	"github.com/gogi0001/family-tasks/internal/notify"
 	"github.com/gogi0001/family-tasks/internal/storage"
 )
 
-// Config Структура конфигурации
 type Config struct {
 	WebDir   string
 	Tasks    storage.TaskStore
 	Users    storage.UserStore
 	Families storage.FamilyStore
-	Ntfy     *notify.Client // ← новое
-
+	Ntfy     *notify.Client
+	Events   *events.Hub
 }
 
 func NewRouter(cfg Config) http.Handler {
 	mux := http.NewServeMux()
 
-	th := &tasksHandler{
-		store: cfg.Tasks,
-		ntfy:  cfg.Ntfy,
-	}
+	th := &tasksHandler{store: cfg.Tasks, ntfy: cfg.Ntfy, events: cfg.Events}
 	mh := &meHandler{users: cfg.Users}
-	fh := &familyHandler{families: cfg.Families, users: cfg.Users}
+	fh := &familyHandler{families: cfg.Families, users: cfg.Users, events: cfg.Events}
+	sh := &sseHandler{hub: cfg.Events}
 
-	// --- служебные ---
 	mux.HandleFunc("GET /api/v1/ping", handlePing)
 
-	// --- идентификация ---
 	mux.HandleFunc("GET /api/v1/me", mh.get)
 	mux.HandleFunc("POST /api/v1/me", mh.set)
-	mux.HandleFunc("PATCH /api/v1/me", mh.setColor) // ← вот это
+	mux.HandleFunc("PATCH /api/v1/me", mh.setColor)
 	mux.HandleFunc("DELETE /api/v1/me", mh.logout)
 
-	// --- семьи ---
 	mux.HandleFunc("POST /api/v1/families", fh.create)
 	mux.HandleFunc("POST /api/v1/families/join", fh.join)
 	mux.HandleFunc("GET /api/v1/families/me", fh.me)
 	mux.HandleFunc("DELETE /api/v1/families/members/{id}", fh.removeMember)
 	mux.HandleFunc("POST /api/v1/families/invite/regenerate", fh.regenerateCode)
 
-	// --- задачи ---
 	mux.HandleFunc("GET /api/v1/tasks", th.list)
 	mux.HandleFunc("POST /api/v1/tasks", th.create)
 	mux.HandleFunc("GET /api/v1/tasks/{id}", th.get)
 	mux.HandleFunc("PATCH /api/v1/tasks/{id}", th.update)
 	mux.HandleFunc("DELETE /api/v1/tasks/{id}", th.delete)
 
-	// --- статика ---
+	mux.HandleFunc("GET /api/v1/events", sh.stream)
+
 	if cfg.WebDir != "" {
 		fs := http.FileServer(http.Dir(cfg.WebDir))
 
@@ -61,24 +56,17 @@ func NewRouter(cfg Config) http.Handler {
 			w.WriteHeader(http.StatusNoContent)
 		})
 		mux.Handle("GET /", fs)
-
 		slog.Info("static mounted", "dir", cfg.WebDir)
 	} else {
 		slog.Warn("static disabled: WebDir is empty")
 	}
 
-	// Обёртки. Порядок применения:
-	//   mux  →  withUser  →  apiJSONNotFound  →  withLogging
-	// Логирование — самый внешний слой, чтобы видеть все запросы.
-	// withUser идёт ближе к мультиплексору, чтобы положить *User в контекст.
 	var h http.Handler = mux
 	h = withUser(cfg.Users, h)
 	h = apiJSONNotFound(h)
 	h = withLogging(h)
 	return h
 }
-
-// --- helpers ---
 
 func handlePing(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -94,9 +82,6 @@ func writeError(w http.ResponseWriter, code int, msg string) {
 	writeJSON(w, code, map[string]string{"error": msg})
 }
 
-// apiJSONNotFound подменяет HTML-404 от FileServer на JSON для путей /api/*.
-// Реализовано обёрткой, а не паттерном мультиплексора — так избегаем конфликта
-// с "GET /" в ServeMux Go 1.22+.
 func apiJSONNotFound(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.URL.Path, "/api/") {
@@ -129,7 +114,6 @@ func (w *apiNotFoundRecorder) WriteHeader(code int) {
 
 func (w *apiNotFoundRecorder) Write(b []byte) (int, error) {
 	if w.replaced {
-		// Тело HTML-404 от FileServer игнорируем — JSON уже отправлен.
 		return len(b), nil
 	}
 	return w.ResponseWriter.Write(b)

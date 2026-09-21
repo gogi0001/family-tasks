@@ -15,6 +15,7 @@ import (
 
 	"github.com/gogi0001/family-tasks/internal/api"
 	"github.com/gogi0001/family-tasks/internal/config"
+	"github.com/gogi0001/family-tasks/internal/events"
 	"github.com/gogi0001/family-tasks/internal/notify"
 	"github.com/gogi0001/family-tasks/internal/reminder"
 	"github.com/gogi0001/family-tasks/internal/storage"
@@ -32,20 +33,17 @@ func main() {
 
 	setupLogger(cfg)
 
-	// --- Поиск web/ ---
 	webDir, err := resolveWebDir(cfg.WebDir)
 	if err != nil {
 		slog.Error("cannot locate web dir", "err", err, "web_dir_flag", cfg.WebDir)
 		os.Exit(1)
 	}
 
-	// --- Подготовка каталога для БД ---
 	if err := os.MkdirAll(filepath.Dir(cfg.DBPath), 0o755); err != nil {
 		slog.Error("create db dir", "err", err, "path", cfg.DBPath)
 		os.Exit(1)
 	}
 
-	// --- Хранилище ---
 	store, err := storage.OpenSQLite(cfg.DBPath)
 	if err != nil {
 		slog.Error("open store", "err", err, "path", cfg.DBPath)
@@ -57,8 +55,14 @@ func main() {
 		}
 	}()
 
-	// --- ntfy ---
 	ntfyClient := notify.NewClient(cfg.NtfyURL, cfg.NtfyTopic, cfg.NtfyClick)
+	hub := events.NewHub()
+
+	reminderInterval, reminderWindow, err := cfg.ReminderDurations()
+	if err != nil {
+		slog.Error("invalid reminder config", "err", err)
+		os.Exit(1)
+	}
 
 	slog.Info("starting server",
 		"addr", cfg.Addr,
@@ -78,19 +82,16 @@ func main() {
 			Users:    store,
 			Families: store,
 			Ntfy:     ntfyClient,
+			Events:   hub,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
+		// WriteTimeout НЕ ставим — иначе SSE оборвётся.
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// --- Напоминания о сроке ---
-	reminderInterval, reminderWindow, err := cfg.ReminderDurations()
-	if err != nil {
-		slog.Error("invalid reminder config", "err", err)
-		os.Exit(1)
-	}
+	// Напоминания о сроке
 	reminderRunner := reminder.New(store, ntfyClient, reminderInterval, reminderWindow)
 	go reminderRunner.Run(ctx)
 
@@ -111,11 +112,8 @@ func main() {
 	slog.Info("stopped")
 }
 
-// --- helpers ---
-
 func setupLogger(cfg *config.Config) {
 	opts := &slog.HandlerOptions{Level: cfg.SlogLevel()}
-
 	var h slog.Handler
 	if cfg.LogFormat == "json" {
 		h = slog.NewJSONHandler(os.Stdout, opts)
@@ -125,8 +123,6 @@ func setupLogger(cfg *config.Config) {
 	slog.SetDefault(slog.New(h))
 }
 
-// resolveWebDir: если задан явно — берём как есть.
-// Иначе пробуем ./web, ../../web (запуск из cmd/server), web рядом с бинарником.
 func resolveWebDir(explicit string) (string, error) {
 	candidates := []string{}
 	if explicit != "" {

@@ -9,17 +9,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gogi0001/family-tasks/internal/events"
 	"github.com/gogi0001/family-tasks/internal/models"
 	"github.com/gogi0001/family-tasks/internal/notify"
 	"github.com/gogi0001/family-tasks/internal/storage"
 )
 
 type tasksHandler struct {
-	store storage.TaskStore
-	ntfy  *notify.Client
+	store  storage.TaskStore
+	ntfy   *notify.Client
+	events *events.Hub
 }
 
-// requireFamily проверяет, что пользователь идентифицирован и состоит в семье.
 func requireFamily(w http.ResponseWriter, r *http.Request) (*models.User, bool) {
 	u, ok := userFromCtx(r.Context())
 	if !ok {
@@ -40,11 +41,7 @@ func (h *tasksHandler) list(w http.ResponseWriter, r *http.Request) {
 	}
 	tasks, err := h.store.List(r.Context(), u.FamilyID)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "list tasks",
-			"err", err,
-			"family_id", u.FamilyID,
-			"request_id", w.Header().Get("X-Request-ID"),
-		)
+		slog.ErrorContext(r.Context(), "list tasks", "err", err, "family_id", u.FamilyID)
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
@@ -95,19 +92,19 @@ func (h *tasksHandler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// --- push-уведомление о новой задаче ---
 	msg := "Задача для " + t.Assignee + ": " + t.Title
 	if t.DueAt != nil {
 		msg += "\nСрок: " + t.DueAt.Local().Format("02.01 15:04")
 	}
-	// в create:
 	_ = h.ntfy.Send(
 		"Новая задача от "+u.Name,
 		msg,
 		"default",
 		"memo",
 		h.ntfy.TaskClick(t.ID),
-	) // ---------------------------------------
+	)
+
+	h.events.Broadcast(u.FamilyID, events.Event{Type: "task.created"})
 
 	writeJSON(w, http.StatusCreated, t)
 }
@@ -130,11 +127,8 @@ func (h *tasksHandler) update(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-
 	id := r.PathValue("id")
 
-	// Загружаем текущее состояние — нужно, чтобы понять, действительно ли
-	// статус изменился, и стоит ли кого-то уведомлять.
 	old, err := h.store.Get(r.Context(), u.FamilyID, id)
 	if err != nil {
 		writeStoreError(w, r, err)
@@ -184,10 +178,11 @@ func (h *tasksHandler) update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Уведомляем автора, если статус действительно поменялся и менял не он сам.
 	if req.Status != nil && *req.Status != old.Status {
 		h.notifyStatusChange(u, t)
 	}
+
+	h.events.Broadcast(u.FamilyID, events.Event{Type: "task.updated"})
 
 	writeJSON(w, http.StatusOK, t)
 }
@@ -213,13 +208,11 @@ func (h *tasksHandler) delete(w http.ResponseWriter, r *http.Request) {
 		writeStoreError(w, r, err)
 		return
 	}
+
+	h.events.Broadcast(u.FamilyID, events.Event{Type: "task.deleted"})
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// --- Уведомления ---
-
-// notifyStatusChange отправляет уведомление автору задачи при смене статуса.
-// Если статус менял сам автор — уведомление не отправляется.
 func (h *tasksHandler) notifyStatusChange(actor *models.User, t *models.Task) {
 	if h.ntfy == nil {
 		return
@@ -247,10 +240,7 @@ func (h *tasksHandler) notifyStatusChange(actor *models.User, t *models.Task) {
 	}
 
 	_ = h.ntfy.Send(title, body, "default", tag, h.ntfy.TaskClick(t.ID))
-
 }
-
-// --- helpers ---
 
 func parseDueAt(s string) (*time.Time, error) {
 	if s == "" {
@@ -269,10 +259,6 @@ func writeStoreError(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, http.StatusNotFound, "task not found")
 		return
 	}
-	slog.ErrorContext(r.Context(), "store error",
-		"err", err,
-		"path", r.URL.Path,
-		"request_id", w.Header().Get("X-Request-ID"),
-	)
+	slog.ErrorContext(r.Context(), "store error", "err", err, "path", r.URL.Path)
 	writeError(w, http.StatusInternalServerError, "internal error")
 }
