@@ -6,9 +6,9 @@ import { memberByName, memberByID, isOwner } from './family.js';
 import { emit } from './events.js';
 
 const STATUSES = [
-  { key: 'todo', label: 'Надо' },
+  { key: 'todo',        label: 'Надо' },
   { key: 'in_progress', label: 'В работе' },
-  { key: 'done', label: 'Готово' },
+  { key: 'done',        label: 'Готово' },
 ];
 
 // --- Модалка добавления ---
@@ -71,18 +71,15 @@ function applyQuick(task, quick) {
 }
 
 function applyAdvanced(task, f) {
-  // Статус
   if (f.status === 'active') {
     if (task.status === 'done') return false;
   } else if (f.status !== 'all') {
     if (task.status !== f.status) return false;
   }
 
-  // Автор / исполнитель
   if (f.creator && task.createdBy !== f.creator) return false;
   if (f.assignee && task.assignee !== f.assignee) return false;
 
-  // Диапазон дат создания
   if (f.createdFrom) {
     const from = new Date(f.createdFrom + 'T00:00:00').getTime();
     if (new Date(task.createdAt).getTime() < from) return false;
@@ -105,6 +102,41 @@ function visibleTasks() {
     return state.sort === 'oldest' ? aT - bT : bT - aT;
   });
   return list;
+}
+
+// --- Счётчики на быстрых кнопках ---
+
+function countForQuick() {
+  const me = state.user?.name;
+  let all = 0, my = 0, overdue = 0;
+
+  for (const t of state.tasks) {
+    all++;
+    if (me && (t.createdBy === me || t.assignee === me) && t.status !== 'done') my++;
+    if (isOverdue(t)) overdue++;
+  }
+
+  return { all, 'my-active': my, overdue };
+}
+
+function renderQuickCounts() {
+  const counts = countForQuick();
+
+  for (const btn of els.taskFilter.querySelectorAll('button[data-quick]')) {
+    const n = counts[btn.dataset.quick] ?? 0;
+
+    let badge = btn.querySelector('.badge');
+    if (n > 0) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'badge';
+        btn.appendChild(badge);
+      }
+      badge.textContent = String(n);
+    } else if (badge) {
+      badge.remove();
+    }
+  }
 }
 
 // --- Загрузка ---
@@ -179,7 +211,6 @@ function renderTask(t) {
   }
   card.appendChild(meta);
 
-  // Даты
   const dates = document.createElement('div');
   dates.className = 'task-dates';
 
@@ -208,7 +239,6 @@ function renderTask(t) {
   }
   card.appendChild(dates);
 
-  // Статусы
   const updater = t.statusUpdatedBy ? memberByID(t.statusUpdatedBy) : null;
   const activeColor = updater?.color || null;
 
@@ -246,6 +276,8 @@ export function render() {
   }
 
   for (const t of list) els.tasks.appendChild(renderTask(t));
+
+  renderQuickCounts();
   updateFilterToggle();
 }
 
@@ -271,18 +303,17 @@ function applyFilterPanelVisibility() {
 }
 
 function syncFilterPanelFromState() {
-  els.filterStatus.value = state.filter.status;
-  els.filterCreator.value = state.filter.creator;
+  els.filterStatus.value   = state.filter.status;
+  els.filterCreator.value  = state.filter.creator;
   els.filterAssignee.value = state.filter.assignee;
-  els.filterFrom.value = state.filter.createdFrom;
-  els.filterTo.value = state.filter.createdTo;
+  els.filterFrom.value     = state.filter.createdFrom;
+  els.filterTo.value       = state.filter.createdTo;
 }
 
-// Обновление опций creator/assignee из текущего состава семьи.
 export function refreshFilterOptions() {
   const members = state.family?.members || [];
 
-  const creator = fillFilterSelect(els.filterCreator, members, state.filter.creator);
+  const creator  = fillFilterSelect(els.filterCreator,  members, state.filter.creator);
   const assignee = fillFilterSelect(els.filterAssignee, members, state.filter.assignee);
 
   if (creator !== state.filter.creator || assignee !== state.filter.assignee) {
@@ -325,7 +356,6 @@ export function init() {
     if (e.key === 'Escape' && isAddModalOpen()) closeAddModal();
   });
 
-  // Быстрые фильтры
   els.taskFilter.addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-quick]');
     if (!btn) return;
@@ -334,20 +364,17 @@ export function init() {
     render();
   });
 
-  // Сортировка
   els.taskSort.addEventListener('change', () => {
     setSort(els.taskSort.value);
     render();
   });
 
-  // Подробный фильтр — toggle видимости
   els.filterToggle.addEventListener('click', () => {
     setFilter({ open: !state.filter.open });
     applyFilterPanelVisibility();
     updateFilterToggle();
   });
 
-  // Поля подробного фильтра
   els.filterStatus.addEventListener('change', () => {
     setFilter({ status: els.filterStatus.value });
     render();
@@ -375,18 +402,17 @@ export function init() {
     render();
   });
 
-  // Форма добавления
   els.form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!state.user) { emit('unauthorized'); return; }
+    if (!state.user)   { emit('unauthorized'); return; }
     if (!state.family) { toast('Сначала создайте семью', 'error'); return; }
 
-    const title = els.title.value.trim();
-    const assignee = els.assignee.value.trim();
+    const title       = els.title.value.trim();
+    const assignee    = els.assignee.value.trim();
     const description = els.description.value.trim();
-    const dueAt = toRFC3339(els.due.value);
+    const dueAt       = toRFC3339(els.due.value);
 
-    if (!title) { toast('Что сделать?', 'error'); els.title.focus(); return; }
+    if (!title)    { toast('Что сделать?', 'error'); els.title.focus(); return; }
     if (!assignee) { toast('Кому назначить?', 'error'); els.assignee.focus(); return; }
 
     try {
@@ -402,7 +428,6 @@ export function init() {
     }
   });
 
-  // Первичная синхронизация UI с состоянием
   updateQuickButtons();
   syncFilterPanelFromState();
   applyFilterPanelVisibility();
