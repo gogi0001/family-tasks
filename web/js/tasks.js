@@ -4,11 +4,12 @@ import { api } from './api.js';
 import { toast } from './toast.js';
 import { memberByName, memberByID, isOwner } from './family.js';
 import { emit } from './events.js';
+import * as attachments from './attachments.js';
 
 const STATUSES = [
-  { key: 'todo',        label: 'Надо' },
+  { key: 'todo', label: 'Надо' },
   { key: 'in_progress', label: 'В работе' },
-  { key: 'done',        label: 'Готово' },
+  { key: 'done', label: 'Готово' },
 ];
 
 // --- Модалка добавления ---
@@ -167,6 +168,53 @@ function coloredChip(prefix, name, color, muted = false) {
   return chip;
 }
 
+function renderAttachments(taskId, list) {
+  const wrap = document.createElement('div');
+  wrap.className = 'task-attachments';
+
+  for (const a of list) {
+    const cell = document.createElement('div');
+    cell.className = 'task-attachment';
+
+    const img = document.createElement('img');
+    img.src = a.url;
+    img.alt = a.filename || '';
+    img.loading = 'lazy';
+    img.addEventListener('click', () => attachments.openLightbox(a));
+    cell.appendChild(img);
+
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'attachment-remove';
+    rm.title = 'Удалить';
+    rm.textContent = '×';
+    rm.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm('Удалить вложение?')) return;
+      try {
+        await api(`/tasks/${taskId}/attachments/${a.id}`, { method: 'DELETE' });
+        emit('attachments-changed');
+      } catch (err) {
+        if (err.status === 0) return;
+        toast(err.message, 'error');
+      }
+    });
+    cell.appendChild(rm);
+
+    wrap.appendChild(cell);
+  }
+
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'task-attachment attachment-add';
+  addBtn.title = 'Прикрепить фото';
+  addBtn.textContent = '+';
+  addBtn.addEventListener('click', () => attachments.pickFilesFor(taskId));
+  wrap.appendChild(addBtn);
+
+  return wrap;
+}
+
 function renderTask(t) {
   const card = document.createElement('article');
   card.className = 'task';
@@ -239,6 +287,8 @@ function renderTask(t) {
   }
   card.appendChild(dates);
 
+  card.appendChild(renderAttachments(t.id, t.attachments || []));
+
   const updater = t.statusUpdatedBy ? memberByID(t.statusUpdatedBy) : null;
   const activeColor = updater?.color || null;
 
@@ -303,17 +353,17 @@ function applyFilterPanelVisibility() {
 }
 
 function syncFilterPanelFromState() {
-  els.filterStatus.value   = state.filter.status;
-  els.filterCreator.value  = state.filter.creator;
+  els.filterStatus.value = state.filter.status;
+  els.filterCreator.value = state.filter.creator;
   els.filterAssignee.value = state.filter.assignee;
-  els.filterFrom.value     = state.filter.createdFrom;
-  els.filterTo.value       = state.filter.createdTo;
+  els.filterFrom.value = state.filter.createdFrom;
+  els.filterTo.value = state.filter.createdTo;
 }
 
 export function refreshFilterOptions() {
   const members = state.family?.members || [];
 
-  const creator  = fillFilterSelect(els.filterCreator,  members, state.filter.creator);
+  const creator = fillFilterSelect(els.filterCreator, members, state.filter.creator);
   const assignee = fillFilterSelect(els.filterAssignee, members, state.filter.assignee);
 
   if (creator !== state.filter.creator || assignee !== state.filter.assignee) {
@@ -404,15 +454,15 @@ export function init() {
 
   els.form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!state.user)   { emit('unauthorized'); return; }
+    if (!state.user) { emit('unauthorized'); return; }
     if (!state.family) { toast('Сначала создайте семью', 'error'); return; }
 
-    const title       = els.title.value.trim();
-    const assignee    = els.assignee.value.trim();
+    const title = els.title.value.trim();
+    const assignee = els.assignee.value.trim();
     const description = els.description.value.trim();
-    const dueAt       = toRFC3339(els.due.value);
+    const dueAt = toRFC3339(els.due.value);
 
-    if (!title)    { toast('Что сделать?', 'error'); els.title.focus(); return; }
+    if (!title) { toast('Что сделать?', 'error'); els.title.focus(); return; }
     if (!assignee) { toast('Кому назначить?', 'error'); els.assignee.focus(); return; }
 
     try {

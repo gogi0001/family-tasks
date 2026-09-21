@@ -62,7 +62,9 @@ export const els = {
   assignee: $('assignee'),
   due: $('due'),
   description: $('description'),
-
+  uploadInput: $('upload-input'),
+  lightbox: $('lightbox'),
+  lightboxImg: $('lightbox-img'),
   toast: $('toast'),
 };
 

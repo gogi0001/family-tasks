@@ -622,3 +622,85 @@ func (s *SQLite) MarkReminded(ctx context.Context, id string, at time.Time) erro
 	}
 	return nil
 }
+
+// --- attachments ---
+
+func (s *SQLite) ListForFamily(ctx context.Context, familyID string) ([]*models.Attachment, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT a.id, a.task_id, a.stored_name, a.filename, a.mime, a.size, a.created_by, a.created_at
+		FROM task_attachments a
+		JOIN tasks t ON t.id = a.task_id
+		WHERE t.family_id = ?
+		ORDER BY a.created_at ASC
+	`, familyID)
+	if err != nil {
+		return nil, fmt.Errorf("list attachments: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]*models.Attachment, 0)
+	for rows.Next() {
+		a, err := scanAttachment(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, a)
+	}
+	return out, rows.Err()
+}
+
+func (s *SQLite) ListForTask(ctx context.Context, taskID string) ([]*models.Attachment, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, task_id, stored_name, filename, mime, size, created_by, created_at
+		FROM task_attachments
+		WHERE task_id = ?
+		ORDER BY created_at ASC
+	`, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("list task attachments: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]*models.Attachment, 0)
+	for rows.Next() {
+		a, err := scanAttachment(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, a)
+	}
+	return out, rows.Err()
+}
+
+func (s *SQLite) GetAttachment(ctx context.Context, id string) (*models.Attachment, error) {
+	row := s.db.QueryRowContext(ctx, `
+		SELECT id, task_id, stored_name, filename, mime, size, created_by, created_at
+		FROM task_attachments WHERE id = ?
+	`, id)
+	return scanAttachment(row)
+}
+
+func (s *SQLite) CreateAttachment(ctx context.Context, a *models.Attachment) error {
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO task_attachments (id, task_id, stored_name, filename, mime, size, created_by, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`,
+		a.ID, a.TaskID, a.StoredName, a.Filename, a.Mime, a.Size, a.CreatedBy,
+		a.CreatedAt.Format(timeLayout),
+	)
+	if err != nil {
+		return fmt.Errorf("insert attachment: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLite) DeleteAttachment(ctx context.Context, id string) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM task_attachments WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("delete attachment: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}

@@ -36,3 +36,11 @@ type UserStore interface {
 	SetColor(ctx context.Context, userID, color string) error
 	RemoveFromFamily(ctx context.Context, userID string) error
 }
+
+type AttachmentStore interface {
+	ListForFamily(ctx context.Context, familyID string) ([]*models.Attachment, error)
+	ListForTask(ctx context.Context, taskID string) ([]*models.Attachment, error)
+	Get(ctx context.Context, id string) (*models.Attachment, error)
+	Create(ctx context.Context, att *models.Attachment) error
+	Delete(ctx context.Context, id string) error
+}

@@ -8,6 +8,7 @@ import * as family from './family.js';
 import * as tasks from './tasks.js';
 import * as connection from './connection.js';
 import * as sse from './sse.js';
+import * as attachments from './attachments.js';
 
 checkDom();
 
@@ -90,11 +91,17 @@ on('sse-open', () => {
   tasks.load();
 });
 
+on('attachments-changed', () => {
+  log('event: attachments-changed');
+  tasks.load();
+});
+
 // --- Init ---
 
 user.init();
 family.init();
 tasks.init();
+attachments.init();      // ← новое
 connection.renderConnection();
 
 // --- Boot ---

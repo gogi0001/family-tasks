@@ -315,3 +315,68 @@ func (m *Memory) MarkReminded(_ context.Context, _ string, _ time.Time) error {
 	// В памяти не храним reminded_at — не нужно для тестов.
 	return nil
 }
+
+// --- attachments (в памяти, файлы не сохраняются — только для тестов) ---
+
+type MemoryAttachments struct {
+	mu   sync.RWMutex
+	list []*models.Attachment
+}
+
+func NewMemoryAttachments() *MemoryAttachments {
+	return &MemoryAttachments{}
+}
+
+func (m *MemoryAttachments) ListForFamily(_ context.Context, familyID string) ([]*models.Attachment, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make([]*models.Attachment, 0)
+	for _, a := range m.list {
+		// familyID не хранится — в тестах фильтрация не нужна
+		_ = familyID
+		out = append(out, a)
+	}
+	return out, nil
+}
+
+func (m *MemoryAttachments) ListForTask(_ context.Context, taskID string) ([]*models.Attachment, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make([]*models.Attachment, 0)
+	for _, a := range m.list {
+		if a.TaskID == taskID {
+			out = append(out, a)
+		}
+	}
+	return out, nil
+}
+
+func (m *MemoryAttachments) Get(_ context.Context, id string) (*models.Attachment, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, a := range m.list {
+		if a.ID == id {
+			return a, nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
+func (m *MemoryAttachments) Create(_ context.Context, a *models.Attachment) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.list = append(m.list, a)
+	return nil
+}
+
+func (m *MemoryAttachments) Delete(_ context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i, a := range m.list {
+		if a.ID == id {
+			m.list = append(m.list[:i], m.list[i+1:]...)
+			return nil
+		}
+	}
+	return ErrNotFound
+}

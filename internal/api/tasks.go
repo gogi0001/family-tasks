@@ -17,6 +17,8 @@ import (
 
 type tasksHandler struct {
 	store  storage.TaskStore
+	atts   storage.AttachmentStore
+	files  *storage.FileStorage
 	ntfy   *notify.Client
 	events *events.Hub
 }
@@ -45,6 +47,24 @@ func (h *tasksHandler) list(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
+
+	atts, err := h.atts.ListForFamily(r.Context(), u.FamilyID)
+	if err != nil {
+		slog.ErrorContext(r.Context(), "list attachments", "err", err, "family_id", u.FamilyID)
+		// не критично — отдадим задачи без вложений
+	} else {
+		byTask := make(map[string][]models.Attachment, len(atts))
+		for _, a := range atts {
+			a.URL = attachmentURL(a.TaskID, a.ID)
+			byTask[a.TaskID] = append(byTask[a.TaskID], *a)
+		}
+		for _, t := range tasks {
+			if list, ok := byTask[t.ID]; ok {
+				t.Attachments = list
+			}
+		}
+	}
+
 	writeJSON(w, http.StatusOK, tasks)
 }
 
@@ -114,11 +134,24 @@ func (h *tasksHandler) get(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	t, err := h.store.Get(r.Context(), u.FamilyID, r.PathValue("id"))
+	id := r.PathValue("id")
+
+	t, err := h.store.Get(r.Context(), u.FamilyID, id)
 	if err != nil {
 		writeStoreError(w, r, err)
 		return
 	}
+
+	atts, err := h.atts.ListForTask(r.Context(), id)
+	if err == nil {
+		list := make([]models.Attachment, 0, len(atts))
+		for _, a := range atts {
+			a.URL = attachmentURL(a.TaskID, a.ID)
+			list = append(list, *a)
+		}
+		t.Attachments = list
+	}
+
 	writeJSON(w, http.StatusOK, t)
 }
 
@@ -204,9 +237,17 @@ func (h *tasksHandler) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Собираем имена файлов ДО удаления задачи (FK ON DELETE CASCADE
+	// очистит таблицу вложений, но не файлы на диске).
+	atts, _ := h.atts.ListForTask(r.Context(), id)
+
 	if err := h.store.Delete(r.Context(), u.FamilyID, id); err != nil {
 		writeStoreError(w, r, err)
 		return
+	}
+
+	for _, a := range atts {
+		_ = h.files.Remove(a.StoredName)
 	}
 
 	h.events.Broadcast(u.FamilyID, events.Event{Type: "task.deleted"})

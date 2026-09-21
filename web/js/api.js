@@ -16,8 +16,13 @@ export function isOnline() { return online; }
 
 export async function api(path, options = {}) {
   const method = options.method || 'GET';
+  const isForm = options.body instanceof FormData;
   const t0 = performance.now();
   log(`HTTP → ${method} ${path}`);
+
+  const headers = isForm
+    ? { ...(options.headers || {}) }
+    : { 'Content-Type': 'application/json', ...(options.headers || {}) };
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -26,15 +31,15 @@ export async function api(path, options = {}) {
   try {
     res = await fetch(API + path, {
       credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
       ...options,
+      headers,
+      signal: controller.signal,
     });
   } catch (netErr) {
     err(`HTTP ✗ ${method} ${path} — network error`, netErr);
     setOnline(false);
     const e = new Error('Сервер недоступен');
-    e.status = 0;          // 0 = сеть, не HTTP-статус
+    e.status = 0;
     e.offline = true;
     throw e;
   } finally {

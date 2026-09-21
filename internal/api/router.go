@@ -16,6 +16,8 @@ type Config struct {
 	Tasks    storage.TaskStore
 	Users    storage.UserStore
 	Families storage.FamilyStore
+	Atts     storage.AttachmentStore
+	Files    *storage.FileStorage
 	Ntfy     *notify.Client
 	Events   *events.Hub
 }
@@ -23,9 +25,21 @@ type Config struct {
 func NewRouter(cfg Config) http.Handler {
 	mux := http.NewServeMux()
 
-	th := &tasksHandler{store: cfg.Tasks, ntfy: cfg.Ntfy, events: cfg.Events}
+	th := &tasksHandler{
+		store:  cfg.Tasks,
+		atts:   cfg.Atts,
+		files:  cfg.Files,
+		ntfy:   cfg.Ntfy,
+		events: cfg.Events,
+	}
 	mh := &meHandler{users: cfg.Users}
 	fh := &familyHandler{families: cfg.Families, users: cfg.Users, events: cfg.Events}
+	ah := &attachmentsHandler{
+		tasks:  cfg.Tasks,
+		atts:   cfg.Atts,
+		files:  cfg.Files,
+		events: cfg.Events,
+	}
 	sh := &sseHandler{hub: cfg.Events}
 
 	mux.HandleFunc("GET /api/v1/ping", handlePing)
@@ -46,6 +60,10 @@ func NewRouter(cfg Config) http.Handler {
 	mux.HandleFunc("GET /api/v1/tasks/{id}", th.get)
 	mux.HandleFunc("PATCH /api/v1/tasks/{id}", th.update)
 	mux.HandleFunc("DELETE /api/v1/tasks/{id}", th.delete)
+
+	mux.HandleFunc("POST /api/v1/tasks/{id}/attachments", ah.upload)
+	mux.HandleFunc("GET /api/v1/tasks/{id}/attachments/{attID}", ah.serve)
+	mux.HandleFunc("DELETE /api/v1/tasks/{id}/attachments/{attID}", ah.delete)
 
 	mux.HandleFunc("GET /api/v1/events", sh.stream)
 
@@ -119,17 +137,12 @@ func (w *apiNotFoundRecorder) Write(b []byte) (int, error) {
 	return w.ResponseWriter.Write(b)
 }
 
-// Flush пробрасывает http.Flusher нижележащему writer-у.
-// Без него SSE (`text/event-stream`) не работает — хендлер не может
-// сделать `w.(http.Flusher)` и отдаёт 500.
 func (w *apiNotFoundRecorder) Flush() {
 	if f, ok := w.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
 	}
 }
 
-// Unwrap — стандартный способ дать http.ResponseController и подобным
-// утилитам добраться до исходного writer-а.
 func (w *apiNotFoundRecorder) Unwrap() http.ResponseWriter {
 	return w.ResponseWriter
 }

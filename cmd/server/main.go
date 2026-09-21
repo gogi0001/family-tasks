@@ -55,6 +55,13 @@ func main() {
 		}
 	}()
 
+	files, err := storage.NewFileStorage(cfg.UploadsDir)
+	if err != nil {
+		slog.Error("open file storage", "err", err, "path", cfg.UploadsDir)
+		os.Exit(1)
+	}
+	atts := storage.NewAttachmentRepo(store)
+
 	ntfyClient := notify.NewClient(cfg.NtfyURL, cfg.NtfyTopic, cfg.NtfyClick)
 	hub := events.NewHub()
 
@@ -72,6 +79,7 @@ func main() {
 		"ntfy_url", cfg.NtfyURL,
 		"ntfy_topic", cfg.NtfyTopic,
 		"ntfy_click", cfg.NtfyClick,
+		"uploads_dir", cfg.UploadsDir,
 	)
 
 	srv := &http.Server{
@@ -81,11 +89,12 @@ func main() {
 			Tasks:    store,
 			Users:    store,
 			Families: store,
+			Atts:     atts,
+			Files:    files,
 			Ntfy:     ntfyClient,
 			Events:   hub,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
-		// WriteTimeout НЕ ставим — иначе SSE оборвётся.
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

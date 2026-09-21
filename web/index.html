@@ -162,7 +162,13 @@
   </div>
 
   <div id="toast" hidden></div>
+  <!-- Скрытый input для загрузки вложений -->
+  <input type="file" id="upload-input" accept="image/*" multiple hidden>
 
+  <!-- Лайтбокс для просмотра картинки во весь экран -->
+  <div id="lightbox" hidden>
+    <img id="lightbox-img" alt="">
+  </div>
   <script type="module" src="/js/main.js"></script>
 </body>
 

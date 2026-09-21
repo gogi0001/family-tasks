@@ -23,6 +23,7 @@ type Config struct {
 	LogFormat        string // text|json
 	ReminderInterval string // "5m"
 	ReminderWindow   string // "1h"
+	UploadsDir       string // "data/uploads"
 }
 
 // Parse читает os.Args, переменные окружения и дефолты.
@@ -39,7 +40,7 @@ func Parse(args []string) (*Config, error) {
 	logFormat := fs.String("log-format", envOr("LOG_FORMAT", "text"), "формат логов: text|json")
 	reminderInterval := fs.String("reminder-interval", envOr("REMINDER_INTERVAL", "5m"), "как часто проверять приближающиеся сроки (например, 5m)")
 	reminderWindow := fs.String("reminder-window", envOr("REMINDER_WINDOW", "1h"), "за сколько до срока напоминать (например, 1h)")
-
+	uploadsDir := fs.String("uploads-dir", envOr("UPLOADS_DIR", filepath.Join("data", "uploads")), "каталог для вложений")
 	if err := fs.Parse(args); err != nil {
 		return nil, err
 	}
@@ -55,6 +56,7 @@ func Parse(args []string) (*Config, error) {
 		LogFormat:        strings.ToLower(strings.TrimSpace(*logFormat)),
 		ReminderInterval: strings.TrimSpace(*reminderInterval),
 		ReminderWindow:   strings.TrimSpace(*reminderWindow),
+		UploadsDir:       strings.TrimSpace(*uploadsDir),
 	}
 
 	if err := c.validate(); err != nil {
@@ -69,6 +71,9 @@ func (c *Config) validate() error {
 	}
 	if c.DBPath == "" {
 		return fmt.Errorf("db path must not be empty")
+	}
+	if c.UploadsDir == "" {
+		return fmt.Errorf("uploads dir must not be empty")
 	}
 	switch c.LogLevel {
 	case "debug", "info", "warn", "error":
@@ -132,6 +137,7 @@ func Usage(fs *flag.FlagSet) func() {
 		fmt.Fprintln(fs.Output(), "  family-tasks")
 		fmt.Fprintln(fs.Output(), "  family-tasks -addr :9000 -db /var/lib/family-tasks/tasks.db")
 		fmt.Fprintln(fs.Output(), "  family-tasks -ntfy-url http://localhost:7070 -ntfy-topic family-tasks-home -ntfy-click familytasks://open")
+		fmt.Fprintln(fs.Output(), "  family-tasks -uploads-dir /var/lib/family-tasks/uploads")
 	}
 }
 

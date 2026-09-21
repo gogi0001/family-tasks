@@ -19,18 +19,19 @@ func (s Status) Valid() bool {
 }
 
 type Task struct {
-	ID              string     `json:"id"`
-	FamilyID        string     `json:"familyId,omitempty"`
-	Title           string     `json:"title"`
-	Description     string     `json:"description,omitempty"`
-	Assignee        string     `json:"assignee"`
-	CreatedBy       string     `json:"createdBy"`
-	Status          Status     `json:"status"`
-	StatusUpdatedBy string     `json:"statusUpdatedBy,omitempty"`
-	StatusUpdatedAt *time.Time `json:"statusUpdatedAt,omitempty"`
-	DueAt           *time.Time `json:"dueAt,omitempty"`
-	CreatedAt       time.Time  `json:"createdAt"`
-	UpdatedAt       time.Time  `json:"updatedAt"`
+	ID              string       `json:"id"`
+	FamilyID        string       `json:"familyId,omitempty"`
+	Title           string       `json:"title"`
+	Description     string       `json:"description,omitempty"`
+	Assignee        string       `json:"assignee"`
+	CreatedBy       string       `json:"createdBy"`
+	Status          Status       `json:"status"`
+	StatusUpdatedBy string       `json:"statusUpdatedBy,omitempty"`
+	StatusUpdatedAt *time.Time   `json:"statusUpdatedAt,omitempty"`
+	DueAt           *time.Time   `json:"dueAt,omitempty"`
+	CreatedAt       time.Time    `json:"createdAt"`
+	UpdatedAt       time.Time    `json:"updatedAt"`
+	Attachments     []Attachment `json:"attachments,omitempty"`
 }
 
 type CreateTaskRequest struct {
