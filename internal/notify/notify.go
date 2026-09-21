@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -12,13 +14,12 @@ import (
 type Client struct {
 	baseURL string
 	topic   string
-	click   string // deep link для тапа по уведомлению
+	click   string // базовый deep link, например "familytasks://open"
 	http    *http.Client
 }
 
 // NewClient создаёт клиент. Если baseURL или topic пусты — возвращает nil,
 // и уведомления отключаются автоматически.
-// click может быть пустым — тогда заголовок Click не отправляется.
 func NewClient(baseURL, topic, click string) *Client {
 	if baseURL == "" || topic == "" {
 		slog.Info("ntfy notifications disabled (url or topic not set)")
@@ -41,10 +42,14 @@ func NewClient(baseURL, topic, click string) *Client {
 // title    — заголовок (виден крупно)
 // message  — текст
 // priority — "min"|"low"|"default"|"high"|"urgent" (пусто = default)
-// tags     — emoji/иконки через запятую: "memo", "warning", "+1" и т.д.
-func (c *Client) Send(title, message, priority, tags string) {
+// tags     — emoji/иконки через запятую: "memo", "warning", "+1"
+// click    — полный URL для тапа; если пусто, используется базовый из конфига
+func (c *Client) Send(title, message, priority, tags, click string) {
 	if c == nil {
 		return
+	}
+	if click == "" {
+		click = c.click
 	}
 
 	url := c.baseURL + "/" + c.topic
@@ -63,8 +68,8 @@ func (c *Client) Send(title, message, priority, tags string) {
 	if tags != "" {
 		req.Header.Set("Tags", tags)
 	}
-	if c.click != "" {
-		req.Header.Set("Click", c.click)
+	if click != "" {
+		req.Header.Set("Click", click)
 	}
 
 	resp, err := c.http.Do(req)
@@ -78,5 +83,19 @@ func (c *Client) Send(title, message, priority, tags string) {
 		slog.Warn("ntfy: server returned error", "status", resp.StatusCode)
 		return
 	}
-	slog.Debug("ntfy: sent", "title", title)
+	slog.Debug("ntfy: sent", "title", title, "click", click)
+}
+
+// TaskClick собирает URL на конкретную задачу из базового click.
+// Если базовый click пуст или taskID пуст — вернёт пустую строку,
+// и Send подставит базовый click как есть.
+func (c *Client) TaskClick(taskID string) string {
+	if c == nil || c.click == "" || taskID == "" {
+		return ""
+	}
+	sep := "?"
+	if strings.Contains(c.click, "?") {
+		sep = "&"
+	}
+	return c.click + sep + "task=" + url.QueryEscape(taskID)
 }

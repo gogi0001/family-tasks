@@ -6,9 +6,9 @@ import { memberByName, memberByID, isOwner } from './family.js';
 import { emit } from './events.js';
 
 const STATUSES = [
-  { key: 'todo',        label: 'Надо' },
+  { key: 'todo', label: 'Надо' },
   { key: 'in_progress', label: 'В работе' },
-  { key: 'done',        label: 'Готово' },
+  { key: 'done', label: 'Готово' },
 ];
 
 // --- Модалка добавления ---
@@ -72,16 +72,16 @@ function visibleTasks() {
 // --- Загрузка ---
 
 export async function load() {
-    if (!state.family) { state.tasks = []; render(); return; }
-    try {
-      state.tasks = await api('/tasks');
-      render();
-    } catch (e) {
-      if (e.status === 401 || e.status === 403) return;
-      if (e.status === 0) return;          // offline — индикатор уже показал
-      toast(e.message, 'error');
-    }
+  if (!state.family) { state.tasks = []; render(); return; }
+  try {
+    state.tasks = await api('/tasks');
+    render();
+  } catch (e) {
+    if (e.status === 401 || e.status === 403) return;
+    if (e.status === 0) return;          // offline — индикатор уже показал
+    toast(e.message, 'error');
   }
+}
 // --- Рендер ---
 
 function coloredChip(prefix, name, color, muted = false) {
@@ -101,6 +101,7 @@ function renderTask(t) {
   const card = document.createElement('article');
   card.className = 'task';
   card.dataset.status = t.status;
+  card.dataset.id = t.id;              // ← новое
 
   const head = document.createElement('div');
   head.className = 'task-head';
@@ -110,7 +111,7 @@ function renderTask(t) {
   title.textContent = t.title;
   head.appendChild(title);
 
- 
+
   const canDelete = isOwner() || t.createdBy === state.user?.name;
   if (canDelete) {
     const del = document.createElement('button');
@@ -121,7 +122,7 @@ function renderTask(t) {
     del.addEventListener('click', () => removeTask(t.id));
     head.appendChild(del);
   }
-   
+
   card.appendChild(head);
 
   if (t.description) {
@@ -213,67 +214,67 @@ export function render() {
 // --- Init ---
 
 export function init() {
-    els.addTaskFab.addEventListener('click', openAddModal);
-    els.addTaskCancel.addEventListener('click', closeAddModal);
-  
-    els.addTaskModal.addEventListener('click', (e) => {
-      if (e.target === els.addTaskModal) closeAddModal();
-    });
-  
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && isAddModalOpen()) closeAddModal();
-    });
-  
-    // --- Синхронизация UI с состоянием (cookie могла задать не дефолт) ---
-    for (const b of els.taskFilter.querySelectorAll('button[data-filter]')) {
-      b.classList.toggle('active', b.dataset.filter === state.filter);
-    }
-    els.taskSort.value = state.sort;
-  
-    // --- Фильтр ---
-    els.taskFilter.addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-filter]');
-      if (!btn) return;
-      setFilter(btn.dataset.filter);
-      for (const b of els.taskFilter.querySelectorAll('button')) {
-        b.classList.toggle('active', b === btn);
-      }
-      render();
-    });
-  
-    // --- Сортировка ---
-    els.taskSort.addEventListener('change', () => {
-      setSort(els.taskSort.value);
-      render();
-    });
-  
-    // --- Submit формы добавления ---
-    els.form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if (!state.user)   { emit('unauthorized'); return; }
-      if (!state.family) { toast('Сначала создайте семью', 'error'); return; }
-  
-      const title       = els.title.value.trim();
-      const assignee    = els.assignee.value.trim();
-      const description = els.description.value.trim();
-      const dueAt       = toRFC3339(els.due.value);
-  
-      if (!title)    { toast('Что сделать?', 'error'); els.title.focus(); return; }
-      if (!assignee) { toast('Кому назначить?', 'error'); els.assignee.focus(); return; }
-  
-      try {
-        await api('/tasks', {
-          method: 'POST',
-          body: JSON.stringify({ title, description, assignee, dueAt }),
-        });
-        closeAddModal();
-        await load();
-      } catch (err) {
-        if (err.status === 401) return;
-        toast(err.message, 'error');
-      }
-    });
+  els.addTaskFab.addEventListener('click', openAddModal);
+  els.addTaskCancel.addEventListener('click', closeAddModal);
+
+  els.addTaskModal.addEventListener('click', (e) => {
+    if (e.target === els.addTaskModal) closeAddModal();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isAddModalOpen()) closeAddModal();
+  });
+
+  // --- Синхронизация UI с состоянием (cookie могла задать не дефолт) ---
+  for (const b of els.taskFilter.querySelectorAll('button[data-filter]')) {
+    b.classList.toggle('active', b.dataset.filter === state.filter);
   }
+  els.taskSort.value = state.sort;
+
+  // --- Фильтр ---
+  els.taskFilter.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-filter]');
+    if (!btn) return;
+    setFilter(btn.dataset.filter);
+    for (const b of els.taskFilter.querySelectorAll('button')) {
+      b.classList.toggle('active', b === btn);
+    }
+    render();
+  });
+
+  // --- Сортировка ---
+  els.taskSort.addEventListener('change', () => {
+    setSort(els.taskSort.value);
+    render();
+  });
+
+  // --- Submit формы добавления ---
+  els.form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!state.user) { emit('unauthorized'); return; }
+    if (!state.family) { toast('Сначала создайте семью', 'error'); return; }
+
+    const title = els.title.value.trim();
+    const assignee = els.assignee.value.trim();
+    const description = els.description.value.trim();
+    const dueAt = toRFC3339(els.due.value);
+
+    if (!title) { toast('Что сделать?', 'error'); els.title.focus(); return; }
+    if (!assignee) { toast('Кому назначить?', 'error'); els.assignee.focus(); return; }
+
+    try {
+      await api('/tasks', {
+        method: 'POST',
+        body: JSON.stringify({ title, description, assignee, dueAt }),
+      });
+      closeAddModal();
+      await load();
+    } catch (err) {
+      if (err.status === 401) return;
+      toast(err.message, 'error');
+    }
+  });
+}
 
 async function setStatus(id, status) {
   try {
@@ -291,4 +292,31 @@ async function removeTask(id) {
     await api(`/tasks/${id}`, { method: 'DELETE' });
     await load();
   } catch (e) { toast(e.message, 'error'); }
+}
+
+// highlightTask — скроллит к карточке и подсвечивает её.
+// Если карточки ещё нет (задачи не загружены), повторяет попытку до 5 секунд.
+export function highlightTask(id) {
+  if (!id) return;
+
+  const attempt = (triesLeft) => {
+    document.querySelectorAll('.task.task-highlight')
+      .forEach(el => el.classList.remove('task-highlight'));
+
+    const el = document.querySelector(`.task[data-id="${CSS.escape(id)}"]`);
+    if (!el) {
+      if (triesLeft > 0) setTimeout(() => attempt(triesLeft - 1), 500);
+      else console.log('[app] highlightTask: not found', id);
+      return;
+    }
+
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('task-highlight');
+    setTimeout(() => el.classList.remove('task-highlight'), 4000);
+
+    // Убираем hash, чтобы F5 не подсвечивал снова
+    history.replaceState(null, '', location.pathname + location.search);
+  };
+
+  attempt(10);
 }

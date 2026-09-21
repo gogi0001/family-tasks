@@ -106,7 +106,6 @@ func (h *tasksHandler) create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-
 	// --- push-уведомление ---
 	msg := "Задача для " + t.Assignee + ": " + t.Title
 	if t.DueAt != nil {
@@ -117,6 +116,7 @@ func (h *tasksHandler) create(w http.ResponseWriter, r *http.Request) {
 		msg,
 		"default",
 		"memo",
+		h.ntfy.TaskClick(t.ID),
 	)
 	// -------------------------
 

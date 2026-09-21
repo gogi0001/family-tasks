@@ -3,9 +3,9 @@ import { checkDom, log } from './dom.js';
 import { api } from './api.js';
 import { on } from './events.js';
 import { toast } from './toast.js';
-import * as user       from './user.js';
-import * as family     from './family.js';
-import * as tasks      from './tasks.js';
+import * as user from './user.js';
+import * as family from './family.js';
+import * as tasks from './tasks.js';
 import * as connection from './connection.js';
 
 checkDom();
@@ -86,10 +86,12 @@ async function boot() {
     user.renderUser();
     await family.enterFamilyFlow();
     startPolling();
+    handleTaskHash();
+
   } catch (e) {
-    if (e.status === 401)      user.showNameModal();
-    else if (e.status === 0)   { /* offline — ждём восстановления */ }
-    else                       console.error('[app] boot failed', e);
+    if (e.status === 401) user.showNameModal();
+    else if (e.status === 0) { /* offline — ждём восстановления */ }
+    else console.error('[app] boot failed', e);
   }
 }
 
@@ -120,5 +122,16 @@ function startPolling() {
     refreshIfStale();
   });
 }
+// --- Deep link: #task=<id> ---
+
+function handleTaskHash() {
+  const m = location.hash.match(/(?:^#|&)task=([^&]+)/);
+  if (!m) return;
+  const id = decodeURIComponent(m[1]);
+  log('deep link: task =', id);
+  tasks.highlightTask(id);
+}
+
+window.addEventListener('hashchange', handleTaskHash);
 
 boot();

@@ -23,7 +23,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private lateinit var progress: View
 
-    // URL, с которого сейчас загружена страница (без завершающего слэша).
     private var loadedBase: String = ""
 
     private val settingsLauncher = registerForActivityResult(
@@ -66,7 +65,6 @@ class MainActivity : AppCompatActivity() {
                 request: WebResourceRequest
             ): Boolean {
                 val url = request.url.toString()
-
                 if (loadedBase.isEmpty()) return false
 
                 if (!url.startsWith("$loadedBase/") && url != loadedBase) {
@@ -83,38 +81,36 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Первый запуск — берём URL из prefs или уходим в настройки.
+        // Первый запуск — учитываем deep link из intent (холодный старт).
+        val initialTaskId = extractTaskId(intent)
         val initial = serverUrlFromPrefs()
         if (initial.isEmpty()) {
             openSettings()
         } else {
-            loadUrl(initial)
+            loadUrl(initial, initialTaskId)
         }
-
-        // Если приложение стартовало из уведомления — обработаем intent.
-        handleDeepLink(intent)
     }
 
-    // singleTask + deep link: повторный тап по уведомлению приходит сюда.
+    // singleTask: повторный тап по уведомлению, когда приложение уже живо.
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleDeepLink(intent)
+
+        val taskId = extractTaskId(intent)
+        Log.d("FamilyTasks", "onNewIntent, task = $taskId")
+
+        if (taskId == null || loadedBase.isEmpty()) return
+
+        // Меняем только hash — WebView не перезагружает страницу,
+        // а браузер шлёт hashchange, который ловит наш JS.
+        webView.loadUrl("$loadedBase/#task=${Uri.encode(taskId)}")
     }
 
-    // Разбор familytasks://... из уведомления.
-    private fun handleDeepLink(intent: Intent?) {
-        val data = intent?.data ?: return
-        if (data.scheme != "familytasks") return
-
-        Log.d("FamilyTasks", "deep link: $data")
-
-        // Приложение уже открыто — достаточно перезагрузить WebView,
-        // чтобы увидеть свежие данные. Параметр task (если появится
-        // в будущем) можно использовать для открытия конкретной задачи.
-        if (loadedBase.isNotEmpty()) {
-            webView.reload()
-        }
+    // Извлекаем параметр task из familytasks://open?task=<id>.
+    private fun extractTaskId(intent: Intent?): String? {
+        val data = intent?.data ?: return null
+        if (data.scheme != "familytasks") return null
+        return data.getQueryParameter("task")
     }
 
     override fun onResume() {
@@ -132,10 +128,11 @@ class MainActivity : AppCompatActivity() {
         CookieManager.getInstance().flush()
     }
 
-    private fun loadUrl(url: String) {
+    private fun loadUrl(url: String, taskId: String? = null) {
         val clean = url.trimEnd('/')
         loadedBase = clean
-        webView.loadUrl("$clean/")
+        val suffix = if (taskId != null) "#task=${Uri.encode(taskId)}" else ""
+        webView.loadUrl("$clean/$suffix")
     }
 
     private fun openSettings() {
