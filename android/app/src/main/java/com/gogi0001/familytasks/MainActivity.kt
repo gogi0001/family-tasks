@@ -2,6 +2,7 @@ package com.gogi0001.familytasks
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -10,6 +11,7 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.webkit.CookieManager
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
@@ -25,6 +27,9 @@ class MainActivity : AppCompatActivity() {
 
     private var loadedBase: String = ""
 
+    // Колбэк, который WebView ждёт, пока пользователь выбирает файлы.
+    private var filePathCallback: ValueCallback<Array<Uri>>? = null
+
     private val settingsLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -36,6 +41,30 @@ class MainActivity : AppCompatActivity() {
                 loadUrl(newUrl)
             }
         }
+    }
+
+    // Лончер для выбора файлов. Результат возвращаем в WebView.
+    private val fileChooserLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val callback = filePathCallback ?: return@registerForActivityResult
+        filePathCallback = null
+
+        if (result.resultCode != Activity.RESULT_OK) {
+            callback.onReceiveValue(null)
+            return@registerForActivityResult
+        }
+
+        val data = result.data
+        val uris: Array<Uri>? = when {
+            data?.clipData != null -> {
+                val cd = data.clipData!!
+                Array(cd.itemCount) { i -> cd.getItemAt(i).uri }
+            }
+            data?.data != null -> arrayOf(data.data!!)
+            else -> null
+        }
+        callback.onReceiveValue(uris)
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -57,6 +86,8 @@ class MainActivity : AppCompatActivity() {
             loadWithOverviewMode = true
             useWideViewPort = true
             mediaPlaybackRequiresUserGesture = false
+            allowFileAccess = true
+            allowContentAccess = true
         }
 
         webView.webViewClient = object : WebViewClient() {
@@ -76,12 +107,35 @@ class MainActivity : AppCompatActivity() {
         }
 
         webView.webChromeClient = object : WebChromeClient() {
+
             override fun onProgressChanged(view: WebView, newProgress: Int) {
                 progress.visibility = if (newProgress in 1..99) View.VISIBLE else View.GONE
             }
+
+            // Вот это — то, чего не хватает для <input type="file">.
+            override fun onShowFileChooser(
+                webView: WebView,
+                filePathCallbackLocal: ValueCallback<Array<Uri>>,
+                fileChooserParams: FileChooserParams
+            ): Boolean {
+                // Отменяем предыдущий запрос, если он ещё «висит».
+                filePathCallback?.onReceiveValue(null)
+                filePathCallback = filePathCallbackLocal
+
+                val intent = fileChooserParams.createIntent()
+                intent.addCategory(Intent.CATEGORY_OPENABLE)
+
+                return try {
+                    fileChooserLauncher.launch(intent)
+                    true
+                } catch (e: ActivityNotFoundException) {
+                    filePathCallback = null
+                    filePathCallbackLocal.onReceiveValue(null)
+                    false
+                }
+            }
         }
 
-        // Первый запуск — учитываем deep link из intent (холодный старт).
         val initialTaskId = extractTaskId(intent)
         val initial = serverUrlFromPrefs()
         if (initial.isEmpty()) {
@@ -91,7 +145,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // singleTask: повторный тап по уведомлению, когда приложение уже живо.
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -100,13 +153,9 @@ class MainActivity : AppCompatActivity() {
         Log.d("FamilyTasks", "onNewIntent, task = $taskId")
 
         if (taskId == null || loadedBase.isEmpty()) return
-
-        // Меняем только hash — WebView не перезагружает страницу,
-        // а браузер шлёт hashchange, который ловит наш JS.
         webView.loadUrl("$loadedBase/#task=${Uri.encode(taskId)}")
     }
 
-    // Извлекаем параметр task из familytasks://open?task=<id>.
     private fun extractTaskId(intent: Intent?): String? {
         val data = intent?.data ?: return null
         if (data.scheme != "familytasks") return null
@@ -126,6 +175,14 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         CookieManager.getInstance().flush()
+    }
+
+    // Если пользователь ушёл из приложения во время выбора файла — отпускаем колбэк,
+    // иначе WebView останется в подвешенном состоянии.
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        filePathCallback?.onReceiveValue(null)
+        filePathCallback = null
     }
 
     private fun loadUrl(url: String, taskId: String? = null) {

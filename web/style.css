@@ -1018,3 +1018,12 @@ button.attachment-add:active {
   border-radius: 4px;
   cursor: default;
 }
+
+/* Компактный "+", когда вложений нет */
+button.attachment-add.is-empty {
+  width: 36px;
+  height: 36px;
+  font-size: 20px;
+  border-radius: 999px;
+  border-style: solid;
+}

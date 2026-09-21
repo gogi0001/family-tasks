@@ -206,7 +206,8 @@ function renderAttachments(taskId, list) {
 
   const addBtn = document.createElement('button');
   addBtn.type = 'button';
-  addBtn.className = 'task-attachment attachment-add';
+  addBtn.className = 'task-attachment attachment-add'
+    + (list.length === 0 ? ' is-empty' : '');
   addBtn.title = 'Прикрепить фото';
   addBtn.textContent = '+';
   addBtn.addEventListener('click', () => attachments.pickFilesFor(taskId));
