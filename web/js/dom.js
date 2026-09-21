@@ -49,7 +49,7 @@ export const els = {
   invitesList: $('invites-list'),
   inviteCreate: $('invite-create'),
 
-  // Задачи
+  // Задачи и тулбар
   tasksArea: $('tasks-area'),
   tasks: $('tasks'),
   empty: $('empty'),
@@ -74,27 +74,40 @@ export const els = {
   title: $('title'),
   assignee: $('assignee'),
   due: $('due'),
+  dueField: $('due-field'),
   description: $('description'),
+
+  // Повторяющиеся
+  taskRecurring: $('task-recurring'),
+  recurringFields: $('recurring-fields'),
+  recurringType: $('recurring-type'),
+  recurringTime: $('recurring-time'),
+  recurringInterval: $('recurring-interval'),
+  recurringWeekly: $('recurring-weekly'),
+  recurringDaily: $('recurring-daily'),
+  recurringMonthly: $('recurring-monthly'),
+  recurringDay: $('recurring-day'),
+  weekdays: document.querySelectorAll('.weekdays input[data-wd]'),
+
+  templatesOpen: $('templates-open'),
+  templatesModal: $('templates-modal'),
+  templatesList: $('templates-list'),
+  templatesEmpty: $('templates-empty'),
+  templatesClose: $('templates-close'),
+  templatesCloseBtn: $('templates-close-btn'),
 
   // Вложения
   uploadInput: $('upload-input'),
   lightbox: $('lightbox'),
   lightboxImg: $('lightbox-img'),
 
-  // Модалка срока
-  dueModal: $('due-modal'),
-  dueForm: $('due-form'),
-  dueModalTitle: $('due-modal-title'),
-  dueModalTask: $('due-modal-task'),
-  dueInput: $('due-input'),
-  dueClear: $('due-clear'),
-  dueCancel: $('due-cancel'),
-
   toast: $('toast'),
 };
 
 export function checkDom() {
-  const missing = Object.entries(els).filter(([, v]) => !v).map(([k]) => k);
+  const missing = Object.entries(els)
+    .filter(([, v]) => v == null)
+    .map(([k]) => k);
   if (missing.length) err('DOM: missing:', missing.join(', '));
   else log('DOM: all elements found');
 }

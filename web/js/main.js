@@ -11,6 +11,7 @@ import * as invites from './invites.js';
 import * as connection from './connection.js';
 import * as attachments from './attachments.js';
 import * as sse from './sse.js';
+import * as templates from './templates.js';
 
 checkDom();
 
@@ -101,12 +102,18 @@ on('sse-open', () => {
   tasks.load();
 });
 
+on('template-changed', () => {
+  log('event: template-changed');
+  templates.reloadIfOpen();
+});
+
 // --- Init ---
 
 user.init();
 auth.init();
 family.init();
 tasks.init();
+templates.init();        // ← новое
 invites.init();
 attachments.init();
 connection.renderConnection();

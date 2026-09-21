@@ -1340,3 +1340,210 @@ button.attachment-add.is-empty {
 .due-edit:active {
   color: var(--accent);
 }
+
+/* ─── Recurring: чекбокс и параметры ─────────── */
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.checkbox-row input {
+  margin: 0;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+#recurring-fields {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  background: var(--bg);
+  border-radius: 8px;
+}
+
+#recurring-fields .field {
+  display: grid;
+  gap: 4px;
+}
+
+#add-task-modal #recurring-fields input,
+#add-task-modal #recurring-fields select {
+  width: 100%;
+  padding: 8px 10px;
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+}
+
+.weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.weekdays label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 13px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.weekdays input {
+  width: auto;
+  margin: 0;
+}
+
+.weekdays input:checked+span {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ─── Templates modal ─────────────────────────── */
+#templates-open {
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#templates-open:active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+#templates-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 22, 26, 0.4);
+  padding: 16px;
+}
+
+#templates-modal.open {
+  display: flex;
+}
+
+.templates-card {
+  width: 100%;
+  max-width: 420px;
+  max-height: 80vh;
+  overflow: hidden;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.templates-list {
+  display: grid;
+  gap: 10px;
+  overflow-y: auto;
+  margin: 0 -4px;
+  padding: 0 4px;
+}
+
+.template-row {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border-radius: 10px;
+}
+
+.template-row.inactive {
+  opacity: 0.55;
+}
+
+.template-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.template-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.template-actions {
+  display: inline-flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.template-actions button {
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.template-actions button:active {
+  background: var(--card);
+}
+
+.template-meta {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.template-when {
+  font-size: 12px;
+}
+
+/* ─── Chip для иконки в карточке ──────────────── */
+.chip.small {
+  padding: 1px 6px;
+  font-size: 12px;
+}
+
+#templates-modal .modal-actions {
+  display: block;
+}
+
+#templates-close-btn {
+  width: 100%;
+  padding: 11px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#templates-close-btn:active {
+  background: var(--bg);
+}

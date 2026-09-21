@@ -62,6 +62,7 @@
           <button type="button" data-quick="overdue">Просроченные</button>
         </div>
         <div class="toolbar-actions">
+          <button type="button" id="templates-open" title="Повторяющиеся задачи">⟳</button>
           <button type="button" id="filter-toggle" title="Подробный фильтр">⚙</button>
           <select id="task-sort">
             <option value="newest">Новые → старые</option>
@@ -113,22 +114,90 @@
 
   <button id="add-task-fab" type="button" title="Добавить задачу" hidden>+</button>
 
-  <!-- Модалка добавления задачи -->
+  <!-- Модалка добавления задачи / создания правила -->
   <div id="add-task-modal">
     <form id="add-form">
       <h2>Новая задача</h2>
       <input id="title" placeholder="Что сделать?" required maxlength="200">
       <select id="assignee" required></select>
-      <label class="field">
+
+      <label class="checkbox-row">
+        <input type="checkbox" id="task-recurring">
+        <span>Повторяющаяся задача</span>
+      </label>
+
+      <!-- Обычный срок: показываем, когда повторение выключено -->
+      <label class="field" id="due-field">
         <span class="field-label">Срок (необязательно)</span>
         <input id="due" type="datetime-local">
       </label>
+
+      <!-- Параметры повторения -->
+      <div id="recurring-fields" hidden>
+        <label class="field">
+          <span class="field-label">Тип</span>
+          <select id="recurring-type">
+            <option value="daily">Ежедневно</option>
+            <option value="weekly">По дням недели</option>
+            <option value="monthly">Ежемесячно</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field-label">Время</span>
+          <input id="recurring-time" type="time" value="09:00">
+        </label>
+
+        <label class="field" id="recurring-daily">
+          <span class="field-label">Каждые N дней</span>
+          <input id="recurring-interval" type="number" min="1" max="365" value="1">
+        </label>
+
+        <div class="field" id="recurring-weekly" hidden>
+          <span class="field-label">Дни недели</span>
+          <div class="weekdays">
+            <label><input type="checkbox" data-wd="1"><span>Пн</span></label>
+            <label><input type="checkbox" data-wd="2"><span>Вт</span></label>
+            <label><input type="checkbox" data-wd="3"><span>Ср</span></label>
+            <label><input type="checkbox" data-wd="4"><span>Чт</span></label>
+            <label><input type="checkbox" data-wd="5"><span>Пт</span></label>
+            <label><input type="checkbox" data-wd="6"><span>Сб</span></label>
+            <label><input type="checkbox" data-wd="0"><span>Вс</span></label>
+          </div>
+        </div>
+
+        <label class="field" id="recurring-monthly" hidden>
+          <span class="field-label">Число месяца (1–31)</span>
+          <input id="recurring-day" type="number" min="1" max="31" value="1">
+        </label>
+      </div>
+
       <input id="description" placeholder="Детали (необязательно)" maxlength="500">
       <div class="modal-actions">
         <button type="button" id="add-task-cancel">Отмена</button>
         <button type="submit">Добавить</button>
       </div>
     </form>
+  </div>
+
+  <!-- Модалка списка повторяющихся -->
+  <div id="templates-modal">
+    <div class="templates-card">
+      <div class="family-modal-head">
+        <h2>Повторяющиеся задачи</h2>
+        <button type="button" id="templates-close" title="Закрыть">×</button>
+      </div>
+
+      <div id="templates-list" class="templates-list"></div>
+
+      <p id="templates-empty" class="muted small" hidden>
+        Правил пока нет. Создайте задачу с галочкой «Повторяющаяся».
+      </p>
+
+      <div class="modal-actions">
+        <button type="button" id="templates-close-btn">Закрыть</button>
+      </div>
+    </div>
   </div>
 
   <!-- Модалка входа / регистрации -->
@@ -177,7 +246,6 @@
       <div class="family-modal-members-label">Участники</div>
       <div id="family-modal-members" class="task-meta"></div>
 
-      <!-- Инвайты (только для owner) -->
       <div id="invites-section" hidden>
         <div class="family-modal-members-label">
           <span>Приглашения</span>
@@ -191,6 +259,7 @@
       </div>
     </div>
   </div>
+
   <!-- Модалка изменения срока -->
   <div id="due-modal">
     <form id="due-form">
@@ -204,6 +273,7 @@
       </div>
     </form>
   </div>
+
   <!-- Палитра цветов -->
   <div id="color-picker" hidden>
     <div id="color-grid"></div>

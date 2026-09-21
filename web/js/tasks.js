@@ -13,6 +13,7 @@ const STATUSES = [
 ];
 
 let dueEditTaskId = null;
+
 // --- Модалка добавления ---
 
 export function openAddModal() {
@@ -25,6 +26,8 @@ export function closeAddModal() {
   els.title.value = '';
   els.description.value = '';
   els.due.value = '';
+  els.taskRecurring.checked = false;
+  updateRecurringUI();
 }
 
 function isAddModalOpen() {
@@ -38,7 +41,6 @@ function openDueModal(task) {
   els.dueModalTitle.textContent = 'Изменить срок';
   els.dueModalTask.textContent = task.title;
 
-  // Конвертируем ISO в формат datetime-local (локальное время, без секунд)
   if (task.dueAt) {
     const d = new Date(task.dueAt);
     const pad = n => String(n).padStart(2, '0');
@@ -61,7 +63,53 @@ function isDueModalOpen() {
   return els.dueModal.classList.contains('open');
 }
 
-// --- Утилиты форматирования ---
+// --- Повторение в модалке добавления ---
+
+function updateRecurringUI() {
+  const on = els.taskRecurring.checked;
+
+  els.recurringFields.hidden = !on;
+  els.dueField.hidden = on;
+
+  const t = els.recurringType.value;
+  els.recurringDaily.hidden = t !== 'daily';
+  els.recurringWeekly.hidden = t !== 'weekly';
+  els.recurringMonthly.hidden = t !== 'monthly';
+}
+
+function buildRule() {
+  const type = els.recurringType.value;
+  const time = els.recurringTime.value || '09:00';
+
+  switch (type) {
+    case 'daily': {
+      const interval = Math.max(1, Math.min(365, parseInt(els.recurringInterval.value, 10) || 1));
+      return { type: 'daily', interval, time };
+    }
+    case 'weekly': {
+      const days = [];
+      for (const cb of els.weekdays) {
+        if (cb.checked) days.push(parseInt(cb.dataset.wd, 10));
+      }
+      return { type: 'weekly', weekdays: days, time };
+    }
+    case 'monthly': {
+      const day = Math.max(1, Math.min(31, parseInt(els.recurringDay.value, 10) || 1));
+      return { type: 'monthly', dayOfMonth: day, time };
+    }
+  }
+  return null;
+}
+
+function validateRule(rule) {
+  if (!rule) return 'Не удалось определить правило';
+  if (rule.type === 'weekly' && (!rule.weekdays || rule.weekdays.length === 0)) {
+    return 'Выберите хотя бы один день недели';
+  }
+  return null;
+}
+
+// --- Утилиты ---
 
 function fmtDateTime(iso) {
   if (!iso) return '';
@@ -108,10 +156,8 @@ function applyAdvanced(task, f) {
   } else if (f.status !== 'all') {
     if (task.status !== f.status) return false;
   }
-
   if (f.creator && task.createdBy !== f.creator) return false;
   if (f.assignee && task.assignee !== f.assignee) return false;
-
   if (f.createdFrom) {
     const from = new Date(f.createdFrom + 'T00:00:00').getTime();
     if (new Date(task.createdAt).getTime() < from) return false;
@@ -120,14 +166,12 @@ function applyAdvanced(task, f) {
     const to = new Date(f.createdTo + 'T23:59:59.999').getTime();
     if (new Date(task.createdAt).getTime() > to) return false;
   }
-
   return true;
 }
 
 function visibleTasks() {
   const f = state.filter;
   const list = state.tasks.filter(t => applyQuick(t, f.quick) && applyAdvanced(t, f));
-
   list.sort((a, b) => {
     const aT = new Date(a.createdAt).getTime();
     const bT = new Date(b.createdAt).getTime();
@@ -136,27 +180,23 @@ function visibleTasks() {
   return list;
 }
 
-// --- Счётчики на быстрых кнопках ---
+// --- Счётчики ---
 
 function countForQuick() {
   const me = state.user?.name;
   let all = 0, my = 0, overdue = 0;
-
   for (const t of state.tasks) {
     all++;
     if (me && (t.createdBy === me || t.assignee === me) && t.status !== 'done') my++;
     if (isOverdue(t)) overdue++;
   }
-
   return { all, 'my-active': my, overdue };
 }
 
 function renderQuickCounts() {
   const counts = countForQuick();
-
   for (const btn of els.taskFilter.querySelectorAll('button[data-quick]')) {
     const n = counts[btn.dataset.quick] ?? 0;
-
     let badge = btn.querySelector('.badge');
     if (n > 0) {
       if (!badge) {
@@ -295,6 +335,15 @@ function renderTask(t) {
   const dates = document.createElement('div');
   dates.className = 'task-dates';
 
+  // Иконка повторяющейся задачи
+  if (t.templateId) {
+    const recur = document.createElement('span');
+    recur.className = 'chip small';
+    recur.title = 'Из повторяющейся задачи';
+    recur.textContent = '⟳';
+    dates.appendChild(recur);
+  }
+
   const created = document.createElement('span');
   created.textContent = 'Начата ' + fmtDateTime(t.createdAt);
   dates.appendChild(created);
@@ -330,10 +379,8 @@ function renderTask(t) {
   }
   card.appendChild(dates);
 
-  // Вложения
   card.appendChild(renderAttachments(t.id, t.attachments || []));
 
-  // Статусы
   const updater = t.statusUpdatedBy ? memberByID(t.statusUpdatedBy) : null;
   const activeColor = updater?.color || null;
 
@@ -419,7 +466,6 @@ export function refreshFilterOptions() {
 
 function fillFilterSelect(select, members, currentValue) {
   select.replaceChildren();
-
   const any = document.createElement('option');
   any.value = '';
   any.textContent = 'Любой';
@@ -431,13 +477,12 @@ function fillFilterSelect(select, members, currentValue) {
     opt.textContent = m.name;
     select.appendChild(opt);
   }
-
   const valid = currentValue === '' || members.some(m => m.name === currentValue);
   select.value = valid ? currentValue : '';
   return valid ? currentValue : '';
 }
 
-// --- Подсветка задачи по deep link ---
+// --- Подсветка ---
 
 export function highlightTask(id) {
   if (!id) return;
@@ -456,43 +501,17 @@ export function highlightTask(id) {
       }
       return;
     }
-
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     el.classList.add('task-highlight');
     setTimeout(() => el.classList.remove('task-highlight'), 4000);
-
     history.replaceState(null, '', location.pathname + location.search);
-    console.log('[app] highlightTask: done', id);
   };
-
   attempt(30);
 }
 
 // --- Init ---
 
 export function init() {
-  // Модалка срока
-  els.dueCancel.addEventListener('click', closeDueModal);
-  els.dueModal.addEventListener('click', (e) => {
-    if (e.target === els.dueModal) closeDueModal();
-  });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && isDueModalOpen()) closeDueModal();
-  });
-
-  els.dueForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!dueEditTaskId) return;
-    const value = els.dueInput.value;
-    const dueAt = value ? new Date(value).toISOString() : '';
-    await applyDueChange(dueEditTaskId, dueAt);
-  });
-
-  els.dueClear.addEventListener('click', async () => {
-    if (!dueEditTaskId) return;
-    await applyDueChange(dueEditTaskId, '');
-  });
-
   els.addTaskFab.addEventListener('click', openAddModal);
   els.addTaskCancel.addEventListener('click', closeAddModal);
 
@@ -502,6 +521,28 @@ export function init() {
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && isAddModalOpen()) closeAddModal();
+    if (e.key === 'Escape' && isDueModalOpen()) closeDueModal();
+  });
+
+  // Чекбокс «Повторяющаяся» и переключатель типа
+  els.taskRecurring.addEventListener('change', updateRecurringUI);
+  els.recurringType.addEventListener('change', updateRecurringUI);
+
+  // Модалка срока
+  els.dueCancel.addEventListener('click', closeDueModal);
+  els.dueModal.addEventListener('click', (e) => {
+    if (e.target === els.dueModal) closeDueModal();
+  });
+  els.dueForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!dueEditTaskId) return;
+    const value = els.dueInput.value;
+    const dueAt = value ? new Date(value).toISOString() : '';
+    await applyDueChange(dueEditTaskId, dueAt);
+  });
+  els.dueClear.addEventListener('click', async () => {
+    if (!dueEditTaskId) return;
+    await applyDueChange(dueEditTaskId, '');
   });
 
   els.taskFilter.addEventListener('click', (e) => {
@@ -543,13 +584,13 @@ export function init() {
     setFilter({ createdTo: els.filterTo.value });
     render();
   });
-
   els.filterReset.addEventListener('click', () => {
     resetAdvancedFilter();
     syncFilterPanelFromState();
     render();
   });
 
+  // Submit
   els.form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!state.user) { emit('unauthenticated'); return; }
@@ -558,11 +599,37 @@ export function init() {
     const title = els.title.value.trim();
     const assignee = els.assignee.value.trim();
     const description = els.description.value.trim();
-    const dueAt = toRFC3339(els.due.value);
+    const recurring = els.taskRecurring.checked;
 
     if (!title) { toast('Что сделать?', 'error'); els.title.focus(); return; }
     if (!assignee) { toast('Кому назначить?', 'error'); els.assignee.focus(); return; }
 
+    if (recurring) {
+      const rule = buildRule();
+      const err = validateRule(rule);
+      if (err) { toast(err, 'error'); return; }
+      try {
+        const created = await api('/templates', {
+          method: 'POST',
+          body: JSON.stringify({ title, description, assignee, rule }),
+        });
+        closeAddModal();
+        const next = created.nextRunAt
+          ? new Date(created.nextRunAt).toLocaleString('ru-RU', {
+            day: '2-digit', month: '2-digit',
+            hour: '2-digit', minute: '2-digit',
+          })
+          : '';
+        toast(next ? `Правило создано. Первая задача: ${next}` : 'Правило создано', 'info');
+        emit('template-changed');
+      } catch (err) {
+        if (err.status === 401) { emit('unauthenticated'); return; }
+        toast(err.message, 'error');
+      }
+      return;
+    }
+
+    const dueAt = toRFC3339(els.due.value);
     try {
       await api('/tasks', {
         method: 'POST',
@@ -580,7 +647,7 @@ export function init() {
   syncFilterPanelFromState();
   applyFilterPanelVisibility();
   updateFilterToggle();
-
+  updateRecurringUI();
   els.taskSort.value = state.sort;
 }
 
@@ -590,6 +657,14 @@ async function setStatus(id, status) {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     });
+    await load();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function removeTask(id) {
+  if (!confirm('Удалить задачу?')) return;
+  try {
+    await api(`/tasks/${id}`, { method: 'DELETE' });
     await load();
   } catch (e) { toast(e.message, 'error'); }
 }
@@ -606,12 +681,4 @@ async function applyDueChange(taskId, dueAt) {
     if (e.status === 0) return;
     toast(e.message, 'error');
   }
-}
-
-async function removeTask(id) {
-  if (!confirm('Удалить задачу?')) return;
-  try {
-    await api(`/tasks/${id}`, { method: 'DELETE' });
-    await load();
-  } catch (e) { toast(e.message, 'error'); }
 }
