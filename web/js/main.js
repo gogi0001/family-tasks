@@ -44,6 +44,7 @@ on('identified', async () => {
 on('family-updated', async () => {
   log('event: family-updated');
   family.renderFamily();
+  tasks.refreshFilterOptions();   // ← новое
   await tasks.load();
 });
 

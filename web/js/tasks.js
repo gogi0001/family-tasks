@@ -1,5 +1,5 @@
 import { els } from './dom.js';
-import { state, setFilter, setSort } from './state.js';
+import { state, setFilter, setSort, resetAdvancedFilter, isAdvancedDefault } from './state.js';
 import { api } from './api.js';
 import { toast } from './toast.js';
 import { memberByName, memberByID, isOwner } from './family.js';
@@ -54,19 +54,57 @@ function isOverdue(task) {
   return new Date(task.dueAt).getTime() < Date.now();
 }
 
-// --- Список: фильтр и сортировка ---
+// --- Фильтрация ---
+
+function applyQuick(task, quick) {
+  const me = state.user?.name;
+  switch (quick) {
+    case 'my-active':
+      if (!me) return true;
+      return (task.createdBy === me || task.assignee === me) && task.status !== 'done';
+    case 'overdue':
+      return isOverdue(task);
+    case 'all':
+    default:
+      return true;
+  }
+}
+
+function applyAdvanced(task, f) {
+  // Статус
+  if (f.status === 'active') {
+    if (task.status === 'done') return false;
+  } else if (f.status !== 'all') {
+    if (task.status !== f.status) return false;
+  }
+
+  // Автор / исполнитель
+  if (f.creator && task.createdBy !== f.creator) return false;
+  if (f.assignee && task.assignee !== f.assignee) return false;
+
+  // Диапазон дат создания
+  if (f.createdFrom) {
+    const from = new Date(f.createdFrom + 'T00:00:00').getTime();
+    if (new Date(task.createdAt).getTime() < from) return false;
+  }
+  if (f.createdTo) {
+    const to = new Date(f.createdTo + 'T23:59:59.999').getTime();
+    if (new Date(task.createdAt).getTime() > to) return false;
+  }
+
+  return true;
+}
 
 function visibleTasks() {
-  let ts = state.tasks;
-  if (state.filter === 'active') {
-    ts = ts.filter(t => t.status !== 'done');
-  }
-  const sorted = [...ts].sort((a, b) => {
+  const f = state.filter;
+  const list = state.tasks.filter(t => applyQuick(t, f.quick) && applyAdvanced(t, f));
+
+  list.sort((a, b) => {
     const aT = new Date(a.createdAt).getTime();
     const bT = new Date(b.createdAt).getTime();
     return state.sort === 'oldest' ? aT - bT : bT - aT;
   });
-  return sorted;
+  return list;
 }
 
 // --- Загрузка ---
@@ -77,11 +115,11 @@ export async function load() {
     state.tasks = await api('/tasks');
     render();
   } catch (e) {
-    if (e.status === 401 || e.status === 403) return;
-    if (e.status === 0) return;          // offline — индикатор уже показал
+    if (e.status === 401 || e.status === 403 || e.status === 0) return;
     toast(e.message, 'error');
   }
 }
+
 // --- Рендер ---
 
 function coloredChip(prefix, name, color, muted = false) {
@@ -101,7 +139,7 @@ function renderTask(t) {
   const card = document.createElement('article');
   card.className = 'task';
   card.dataset.status = t.status;
-  card.dataset.id = t.id;              // ← новое
+  card.dataset.id = t.id;
 
   const head = document.createElement('div');
   head.className = 'task-head';
@@ -111,9 +149,7 @@ function renderTask(t) {
   title.textContent = t.title;
   head.appendChild(title);
 
-
-  const canDelete = isOwner() || t.createdBy === state.user?.name;
-  if (canDelete) {
+  if (isOwner() || t.createdBy === state.user?.name) {
     const del = document.createElement('button');
     del.type = 'button';
     del.className = 'icon-btn';
@@ -122,7 +158,6 @@ function renderTask(t) {
     del.addEventListener('click', () => removeTask(t.id));
     head.appendChild(del);
   }
-
   card.appendChild(head);
 
   if (t.description) {
@@ -132,7 +167,6 @@ function renderTask(t) {
     card.appendChild(desc);
   }
 
-  // Мета: кому, от кого
   const meta = document.createElement('div');
   meta.className = 'task-meta';
 
@@ -145,7 +179,7 @@ function renderTask(t) {
   }
   card.appendChild(meta);
 
-  // Даты: создана, статус, срок
+  // Даты
   const dates = document.createElement('div');
   dates.className = 'task-dates';
 
@@ -172,7 +206,6 @@ function renderTask(t) {
     noDue.textContent = 'Бессрочно';
     dates.appendChild(noDue);
   }
-
   card.appendChild(dates);
 
   // Статусы
@@ -205,10 +238,77 @@ export function render() {
   const list = visibleTasks();
   els.tasks.replaceChildren();
   els.empty.hidden = list.length > 0;
-  els.empty.textContent = state.tasks.length === 0
-    ? 'Пока задач нет.'
-    : 'По фильтру ничего не найдено.';
+
+  if (state.tasks.length === 0) {
+    els.empty.textContent = 'Пока задач нет.';
+  } else if (list.length === 0) {
+    els.empty.textContent = 'По фильтру ничего не найдено.';
+  }
+
   for (const t of list) els.tasks.appendChild(renderTask(t));
+  updateFilterToggle();
+}
+
+// --- Тулбар ---
+
+function updateQuickButtons() {
+  for (const b of els.taskFilter.querySelectorAll('button[data-quick]')) {
+    b.classList.toggle('active', b.dataset.quick === state.filter.quick);
+  }
+}
+
+function updateFilterToggle() {
+  const advanced = !isAdvancedDefault();
+  els.filterToggle.classList.toggle('active', advanced);
+  els.filterToggle.classList.toggle('open', state.filter.open);
+  els.filterToggle.title = advanced
+    ? 'Подробный фильтр (включены ограничения)'
+    : 'Подробный фильтр';
+}
+
+function applyFilterPanelVisibility() {
+  els.filterPanel.hidden = !state.filter.open;
+}
+
+function syncFilterPanelFromState() {
+  els.filterStatus.value = state.filter.status;
+  els.filterCreator.value = state.filter.creator;
+  els.filterAssignee.value = state.filter.assignee;
+  els.filterFrom.value = state.filter.createdFrom;
+  els.filterTo.value = state.filter.createdTo;
+}
+
+// Обновление опций creator/assignee из текущего состава семьи.
+export function refreshFilterOptions() {
+  const members = state.family?.members || [];
+
+  const creator = fillFilterSelect(els.filterCreator, members, state.filter.creator);
+  const assignee = fillFilterSelect(els.filterAssignee, members, state.filter.assignee);
+
+  if (creator !== state.filter.creator || assignee !== state.filter.assignee) {
+    setFilter({ creator, assignee });
+    render();
+  }
+}
+
+function fillFilterSelect(select, members, currentValue) {
+  select.replaceChildren();
+
+  const any = document.createElement('option');
+  any.value = '';
+  any.textContent = 'Любой';
+  select.appendChild(any);
+
+  for (const m of members) {
+    const opt = document.createElement('option');
+    opt.value = m.name;
+    opt.textContent = m.name;
+    select.appendChild(opt);
+  }
+
+  const valid = currentValue === '' || members.some(m => m.name === currentValue);
+  select.value = valid ? currentValue : '';
+  return valid ? currentValue : '';
 }
 
 // --- Init ---
@@ -225,30 +325,57 @@ export function init() {
     if (e.key === 'Escape' && isAddModalOpen()) closeAddModal();
   });
 
-  // --- Синхронизация UI с состоянием (cookie могла задать не дефолт) ---
-  for (const b of els.taskFilter.querySelectorAll('button[data-filter]')) {
-    b.classList.toggle('active', b.dataset.filter === state.filter);
-  }
-  els.taskSort.value = state.sort;
-
-  // --- Фильтр ---
+  // Быстрые фильтры
   els.taskFilter.addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-filter]');
+    const btn = e.target.closest('button[data-quick]');
     if (!btn) return;
-    setFilter(btn.dataset.filter);
-    for (const b of els.taskFilter.querySelectorAll('button')) {
-      b.classList.toggle('active', b === btn);
-    }
+    setFilter({ quick: btn.dataset.quick });
+    updateQuickButtons();
     render();
   });
 
-  // --- Сортировка ---
+  // Сортировка
   els.taskSort.addEventListener('change', () => {
     setSort(els.taskSort.value);
     render();
   });
 
-  // --- Submit формы добавления ---
+  // Подробный фильтр — toggle видимости
+  els.filterToggle.addEventListener('click', () => {
+    setFilter({ open: !state.filter.open });
+    applyFilterPanelVisibility();
+    updateFilterToggle();
+  });
+
+  // Поля подробного фильтра
+  els.filterStatus.addEventListener('change', () => {
+    setFilter({ status: els.filterStatus.value });
+    render();
+  });
+  els.filterCreator.addEventListener('change', () => {
+    setFilter({ creator: els.filterCreator.value });
+    render();
+  });
+  els.filterAssignee.addEventListener('change', () => {
+    setFilter({ assignee: els.filterAssignee.value });
+    render();
+  });
+  els.filterFrom.addEventListener('change', () => {
+    setFilter({ createdFrom: els.filterFrom.value });
+    render();
+  });
+  els.filterTo.addEventListener('change', () => {
+    setFilter({ createdTo: els.filterTo.value });
+    render();
+  });
+
+  els.filterReset.addEventListener('click', () => {
+    resetAdvancedFilter();
+    syncFilterPanelFromState();
+    render();
+  });
+
+  // Форма добавления
   els.form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!state.user) { emit('unauthorized'); return; }
@@ -274,6 +401,14 @@ export function init() {
       toast(err.message, 'error');
     }
   });
+
+  // Первичная синхронизация UI с состоянием
+  updateQuickButtons();
+  syncFilterPanelFromState();
+  applyFilterPanelVisibility();
+  updateFilterToggle();
+
+  els.taskSort.value = state.sort;
 }
 
 async function setStatus(id, status) {
@@ -292,31 +427,4 @@ async function removeTask(id) {
     await api(`/tasks/${id}`, { method: 'DELETE' });
     await load();
   } catch (e) { toast(e.message, 'error'); }
-}
-
-// highlightTask — скроллит к карточке и подсвечивает её.
-// Если карточки ещё нет (задачи не загружены), повторяет попытку до 5 секунд.
-export function highlightTask(id) {
-  if (!id) return;
-
-  const attempt = (triesLeft) => {
-    document.querySelectorAll('.task.task-highlight')
-      .forEach(el => el.classList.remove('task-highlight'));
-
-    const el = document.querySelector(`.task[data-id="${CSS.escape(id)}"]`);
-    if (!el) {
-      if (triesLeft > 0) setTimeout(() => attempt(triesLeft - 1), 500);
-      else console.log('[app] highlightTask: not found', id);
-      return;
-    }
-
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    el.classList.add('task-highlight');
-    setTimeout(() => el.classList.remove('task-highlight'), 4000);
-
-    // Убираем hash, чтобы F5 не подсвечивал снова
-    history.replaceState(null, '', location.pathname + location.search);
-  };
-
-  attempt(10);
 }
