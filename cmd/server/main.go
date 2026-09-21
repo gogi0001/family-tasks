@@ -33,17 +33,20 @@ func main() {
 
 	setupLogger(cfg)
 
+	// --- web/ ---
 	webDir, err := resolveWebDir(cfg.WebDir)
 	if err != nil {
 		slog.Error("cannot locate web dir", "err", err, "web_dir_flag", cfg.WebDir)
 		os.Exit(1)
 	}
 
+	// --- каталог БД ---
 	if err := os.MkdirAll(filepath.Dir(cfg.DBPath), 0o755); err != nil {
 		slog.Error("create db dir", "err", err, "path", cfg.DBPath)
 		os.Exit(1)
 	}
 
+	// --- хранилище ---
 	store, err := storage.OpenSQLite(cfg.DBPath)
 	if err != nil {
 		slog.Error("open store", "err", err, "path", cfg.DBPath)
@@ -55,16 +58,23 @@ func main() {
 		}
 	}()
 
+	// --- файловое хранилище и репозитории ---
 	files, err := storage.NewFileStorage(cfg.UploadsDir)
 	if err != nil {
 		slog.Error("open file storage", "err", err, "path", cfg.UploadsDir)
 		os.Exit(1)
 	}
+
+	users := storage.NewUsersRepo(store)
+	sessions := storage.NewSessionsRepo(store)
+	invites := storage.NewInvitesRepo(store)
 	atts := storage.NewAttachmentRepo(store)
 
+	// --- ntfy + hub ---
 	ntfyClient := notify.NewClient(cfg.NtfyURL, cfg.NtfyTopic, cfg.NtfyClick)
 	hub := events.NewHub()
 
+	// --- reminder config ---
 	reminderInterval, reminderWindow, err := cfg.ReminderDurations()
 	if err != nil {
 		slog.Error("invalid reminder config", "err", err)
@@ -83,29 +93,52 @@ func main() {
 		"ntfy_click", cfg.NtfyClick,
 	)
 
+	// --- ctx и обработчики сигналов ---
+	// ВАЖНО: ctx создаётся ДО горутин, которые его используют.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	// --- раннер напоминаний ---
+	reminderRunner := reminder.New(store, ntfyClient, reminderInterval, reminderWindow)
+	go reminderRunner.Run(ctx)
+
+	// --- периодическая чистка протухших сессий ---
+	go func() {
+		t := time.NewTicker(1 * time.Hour)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				if err := sessions.DeleteExpiredSessions(ctx); err != nil {
+					slog.Warn("cleanup sessions", "err", err)
+				}
+			}
+		}
+	}()
+
+	// --- HTTP-сервер ---
 	srv := &http.Server{
 		Addr: cfg.Addr,
 		Handler: api.NewRouter(api.Config{
 			WebDir:         webDir,
 			Tasks:          store,
-			Users:          store,
+			Users:          users,
 			Families:       store,
 			Atts:           atts,
 			Files:          files,
-			MaxUploadBytes: cfg.MaxUploadBytes(), // ← новое
+			Sessions:       sessions,
+			Invites:        invites,
+			MaxUploadBytes: cfg.MaxUploadBytes(),
 			Ntfy:           ntfyClient,
 			Events:         hub,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
+		// WriteTimeout не ставим — иначе SSE оборвётся.
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	// Напоминания о сроке
-	reminderRunner := reminder.New(store, ntfyClient, reminderInterval, reminderWindow)
-	go reminderRunner.Run(ctx)
-
+	// --- graceful shutdown ---
 	go func() {
 		<-ctx.Done()
 		slog.Info("shutdown signal received")
@@ -122,6 +155,8 @@ func main() {
 	}
 	slog.Info("stopped")
 }
+
+// --- helpers ---
 
 func setupLogger(cfg *config.Config) {
 	opts := &slog.HandlerOptions{Level: cfg.SlogLevel()}

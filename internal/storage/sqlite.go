@@ -704,3 +704,5 @@ func (s *SQLite) DeleteAttachment(ctx context.Context, id string) error {
 	}
 	return nil
 }
+
+func newUUID() string { return uuid.NewString() }

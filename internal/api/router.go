@@ -18,6 +18,8 @@ type Config struct {
 	Families       storage.FamilyStore
 	Atts           storage.AttachmentStore
 	Files          *storage.FileStorage
+	Sessions       storage.SessionStore
+	Invites        storage.InviteStore
 	MaxUploadBytes int64
 	Ntfy           *notify.Client
 	Events         *events.Hub
@@ -26,36 +28,37 @@ type Config struct {
 func NewRouter(cfg Config) http.Handler {
 	mux := http.NewServeMux()
 
-	th := &tasksHandler{
-		store:  cfg.Tasks,
-		atts:   cfg.Atts,
-		files:  cfg.Files,
-		ntfy:   cfg.Ntfy,
-		events: cfg.Events,
-	}
+	th := &tasksHandler{store: cfg.Tasks, atts: cfg.Atts, files: cfg.Files, ntfy: cfg.Ntfy, events: cfg.Events}
 	mh := &meHandler{users: cfg.Users}
-	fh := &familyHandler{families: cfg.Families, users: cfg.Users, events: cfg.Events}
-	ah := &attachmentsHandler{
-		tasks:    cfg.Tasks,
-		atts:     cfg.Atts,
-		files:    cfg.Files,
-		events:   cfg.Events,
-		maxBytes: cfg.MaxUploadBytes, // ← новое
-	}
+	fh := &familyHandler{families: cfg.Families, users: cfg.Users, invites: cfg.Invites, events: cfg.Events}
+	ah := &attachmentsHandler{tasks: cfg.Tasks, atts: cfg.Atts, files: cfg.Files, events: cfg.Events, maxBytes: cfg.MaxUploadBytes}
+	authh := &authHandler{users: cfg.Users, sessions: cfg.Sessions, invites: cfg.Invites, families: cfg.Families}
+	ih := &invitesHandler{invites: cfg.Invites, families: cfg.Families}
 	sh := &sseHandler{hub: cfg.Events}
 
 	mux.HandleFunc("GET /api/v1/ping", handlePing)
 
-	mux.HandleFunc("GET /api/v1/me", mh.get)
-	mux.HandleFunc("POST /api/v1/me", mh.set)
-	mux.HandleFunc("PATCH /api/v1/me", mh.setColor)
-	mux.HandleFunc("DELETE /api/v1/me", mh.logout)
+	// --- auth ---
+	mux.HandleFunc("POST /api/v1/auth/register", authh.register)
+	mux.HandleFunc("POST /api/v1/auth/login", authh.login)
+	mux.HandleFunc("POST /api/v1/auth/logout", authh.logout)
 
+	// --- me ---
+	mux.HandleFunc("GET /api/v1/me", mh.get)
+	mux.HandleFunc("PATCH /api/v1/me", mh.setColor)
+
+	// --- invites (публичный info) ---
+	mux.HandleFunc("GET /api/v1/invites/{code}", ih.info)
+
+	// --- families ---
 	mux.HandleFunc("POST /api/v1/families", fh.create)
 	mux.HandleFunc("POST /api/v1/families/join", fh.join)
 	mux.HandleFunc("GET /api/v1/families/me", fh.me)
 	mux.HandleFunc("DELETE /api/v1/families/members/{id}", fh.removeMember)
 	mux.HandleFunc("POST /api/v1/families/invite/regenerate", fh.regenerateCode)
+	mux.HandleFunc("POST /api/v1/families/invites", ih.create)
+	mux.HandleFunc("GET /api/v1/families/invites", ih.list)
+	mux.HandleFunc("DELETE /api/v1/families/invites/{id}", ih.delete)
 
 	mux.HandleFunc("GET /api/v1/tasks", th.list)
 	mux.HandleFunc("POST /api/v1/tasks", th.create)
@@ -82,7 +85,7 @@ func NewRouter(cfg Config) http.Handler {
 	}
 
 	var h http.Handler = mux
-	h = withUser(cfg.Users, h)
+	h = withUser(cfg.Sessions, cfg.Users, h)
 	h = apiJSONNotFound(h)
 	h = withLogging(h)
 	return h

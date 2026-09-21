@@ -8,9 +8,12 @@ import (
 )
 
 var (
-	ErrNotFound  = errors.New("not found")
-	ErrConflict  = errors.New("conflict")
-	ErrForbidden = errors.New("forbidden")
+	ErrNotFound      = errors.New("not found")
+	ErrConflict      = errors.New("conflict")
+	ErrForbidden     = errors.New("forbidden")
+	ErrInvalidCreds  = errors.New("invalid credentials")
+	ErrInviteUsed    = errors.New("invite already used")
+	ErrInviteExpired = errors.New("invite expired")
 )
 
 type TaskStore interface {
@@ -21,6 +24,21 @@ type TaskStore interface {
 	Delete(ctx context.Context, familyID, id string) error
 }
 
+type UserStore interface {
+	GetUser(ctx context.Context, id string) (*models.User, error)
+
+	// CreateUser создаёт пользователя с email и хешем пароля.
+	// Возвращает ErrConflict, если email занят.
+	CreateUser(ctx context.Context, email, passwordHash, name string) (*models.User, error)
+
+	// GetUserByEmail возвращает пользователя и его password_hash.
+	GetUserByEmail(ctx context.Context, email string) (*models.User, string, error)
+
+	SetFamily(ctx context.Context, userID, familyID string, role models.Role) error
+	SetColor(ctx context.Context, userID, color string) error
+	RemoveFromFamily(ctx context.Context, userID string) error
+}
+
 type FamilyStore interface {
 	CreateFamily(ctx context.Context, name, ownerID string) (*models.Family, error)
 	GetFamilyByID(ctx context.Context, id string) (*models.Family, error)
@@ -29,12 +47,20 @@ type FamilyStore interface {
 	RegenerateInviteCode(ctx context.Context, familyID string) (string, error)
 }
 
-type UserStore interface {
-	GetUser(ctx context.Context, id string) (*models.User, error)
-	FindOrCreateByName(ctx context.Context, name string) (*models.User, error)
-	SetFamily(ctx context.Context, userID, familyID string, role models.Role) error
-	SetColor(ctx context.Context, userID, color string) error
-	RemoveFromFamily(ctx context.Context, userID string) error
+type SessionStore interface {
+	CreateSession(ctx context.Context, s *models.Session) error
+	GetSession(ctx context.Context, id string) (*models.Session, error)
+	DeleteSession(ctx context.Context, id string) error
+	DeleteExpiredSessions(ctx context.Context) error
+}
+
+type InviteStore interface {
+	Create(ctx context.Context, inv *models.Invite) error
+	GetByCode(ctx context.Context, code string) (*models.Invite, error)
+	GetByID(ctx context.Context, id string) (*models.Invite, error)
+	ListForFamily(ctx context.Context, familyID string) ([]*models.Invite, error)
+	MarkUsed(ctx context.Context, id, userID string) error
+	Delete(ctx context.Context, id string) error
 }
 
 type AttachmentStore interface {

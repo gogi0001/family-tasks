@@ -380,3 +380,145 @@ func (m *MemoryAttachments) Delete(_ context.Context, id string) error {
 	}
 	return ErrNotFound
 }
+
+// --- memory-заглушки для auth-сторов ---
+
+type MemoryAuth struct {
+	mu       sync.RWMutex
+	byEmail  map[string]*models.User // email -> user
+	hashes   map[string]string       // userID -> hash
+	sessions map[string]*models.Session
+	invites  map[string]*models.Invite // code -> invite
+}
+
+func NewMemoryAuth() *MemoryAuth {
+	return &MemoryAuth{
+		byEmail:  make(map[string]*models.User),
+		hashes:   make(map[string]string),
+		sessions: make(map[string]*models.Session),
+		invites:  make(map[string]*models.Invite),
+	}
+}
+
+func (m *MemoryAuth) CreateUser(_ context.Context, email, hash, name string) (*models.User, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.byEmail[email]; ok {
+		return nil, ErrConflict
+	}
+	u := &models.User{
+		ID:          uuid.NewString(),
+		Email:       email,
+		Name:        name,
+		Color:       DefaultColorFor(name),
+		HasPassword: true,
+		CreatedAt:   time.Now().UTC(),
+	}
+	m.byEmail[email] = u
+	m.hashes[u.ID] = hash
+	return u, nil
+}
+
+func (m *MemoryAuth) GetUserByEmail(_ context.Context, email string) (*models.User, string, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	u, ok := m.byEmail[email]
+	if !ok {
+		return nil, "", ErrNotFound
+	}
+	return u, m.hashes[u.ID], nil
+}
+
+func (m *MemoryAuth) CreateSession(_ context.Context, s *models.Session) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.sessions[s.ID] = s
+	return nil
+}
+
+func (m *MemoryAuth) GetSession(_ context.Context, id string) (*models.Session, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	s, ok := m.sessions[id]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return s, nil
+}
+
+func (m *MemoryAuth) DeleteSession(_ context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.sessions, id)
+	return nil
+}
+
+func (m *MemoryAuth) DeleteExpiredSessions(_ context.Context) error {
+	return nil // в памяти не критично
+}
+
+func (m *MemoryAuth) CreateInvite(_ context.Context, inv *models.Invite) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.invites[inv.Code] = inv
+	return nil
+}
+
+func (m *MemoryAuth) GetInviteByCode(_ context.Context, code string) (*models.Invite, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	inv, ok := m.invites[code]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return inv, nil
+}
+
+func (m *MemoryAuth) GetInviteByID(_ context.Context, id string) (*models.Invite, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, inv := range m.invites {
+		if inv.ID == id {
+			return inv, nil
+		}
+	}
+	return nil, ErrNotFound
+}
+
+func (m *MemoryAuth) ListInvitesForFamily(_ context.Context, familyID string) ([]*models.Invite, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make([]*models.Invite, 0)
+	for _, inv := range m.invites {
+		if inv.FamilyID == familyID {
+			out = append(out, inv)
+		}
+	}
+	return out, nil
+}
+
+func (m *MemoryAuth) MarkInviteUsed(_ context.Context, id, userID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, inv := range m.invites {
+		if inv.ID == id {
+			now := time.Now().UTC()
+			inv.UsedBy = userID
+			inv.UsedAt = &now
+			return nil
+		}
+	}
+	return ErrNotFound
+}
+
+func (m *MemoryAuth) DeleteInvite(_ context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for code, inv := range m.invites {
+		if inv.ID == id {
+			delete(m.invites, code)
+			return nil
+		}
+	}
+	return ErrNotFound
+}

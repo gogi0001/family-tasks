@@ -9,6 +9,9 @@ import (
 	"github.com/google/uuid"
 )
 
+const sessionCookie = "session"
+const sessionTTL = 30 * 24 * time.Hour
+
 // statusRecorder перехватывает код и размер ответа, чтобы залогировать их.
 type statusRecorder struct {
 	http.ResponseWriter
@@ -78,26 +81,58 @@ func withLogging(next http.Handler) http.Handler {
 	})
 }
 
-const userCookie = "uid"
-
-// withUser читает cookie uid, подгружает пользователя и кладёт в контекст.
-// Ничего не падает, если cookie нет или пользователь удалён — просто нет юзера.
-func withUser(us storage.UserStore, next http.Handler) http.Handler {
+func withUser(sessions storage.SessionStore, users storage.UserStore, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		c, err := r.Cookie(userCookie)
+		c, err := r.Cookie(sessionCookie)
 		if err != nil || c.Value == "" {
 			next.ServeHTTP(w, r)
 			return
 		}
-		u, err := us.GetUser(r.Context(), c.Value)
+
+		sess, err := sessions.GetSession(r.Context(), c.Value)
 		if err != nil {
-			// Cookie есть, но пользователя нет — считаем сессию протухшей.
-			http.SetCookie(w, &http.Cookie{
-				Name: userCookie, Value: "", Path: "/", MaxAge: -1,
-			})
+			clearSessionCookie(w)
 			next.ServeHTTP(w, r)
 			return
 		}
+		if time.Now().After(sess.ExpiresAt) {
+			_ = sessions.DeleteSession(r.Context(), sess.ID)
+			clearSessionCookie(w)
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		u, err := users.GetUser(r.Context(), sess.UserID)
+		if err != nil {
+			_ = sessions.DeleteSession(r.Context(), sess.ID)
+			clearSessionCookie(w)
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		next.ServeHTTP(w, r.WithContext(contextWithUser(r.Context(), u)))
 	})
 }
+
+func setSessionCookie(w http.ResponseWriter, id string, expires time.Time) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookie,
+		Value:    id,
+		Path:     "/",
+		Expires:  expires,
+		MaxAge:   int(time.Until(expires).Seconds()),
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		// Secure включаем, когда сервер работает по HTTPS.
+		// Пока просто оставляем false; при переходе на HTTPS — поставить true.
+	})
+}
+
+func clearSessionCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name: sessionCookie, Value: "", Path: "/", MaxAge: -1,
+	})
+}
+
+var _ = slog.LevelInfo // заглушка импорта, если он не используется
+var _ = uuid.NewString

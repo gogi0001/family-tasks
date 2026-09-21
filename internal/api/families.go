@@ -2,10 +2,10 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gogi0001/family-tasks/internal/events"
 	"github.com/gogi0001/family-tasks/internal/models"
@@ -16,6 +16,7 @@ type familyHandler struct {
 	families storage.FamilyStore
 	users    storage.UserStore
 	events   *events.Hub
+	invites  storage.InviteStore
 }
 
 func (h *familyHandler) create(w http.ResponseWriter, r *http.Request) {
@@ -68,32 +69,46 @@ func (h *familyHandler) join(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req models.JoinFamilyRequest
+	var req struct {
+		Invite string `json:"invite"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	req.Code = strings.ToUpper(strings.TrimSpace(req.Code))
-	if req.Code == "" {
-		writeError(w, http.StatusBadRequest, "code is required")
+	req.Invite = strings.TrimSpace(req.Invite)
+	if req.Invite == "" {
+		writeError(w, http.StatusBadRequest, "invite is required")
 		return
 	}
 
-	f, err := h.families.GetFamilyByCode(r.Context(), req.Code)
+	inv, err := h.invites.GetByCode(r.Context(), req.Invite)
 	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			writeError(w, http.StatusNotFound, "family not found")
-			return
-		}
-		writeError(w, http.StatusInternalServerError, "internal error")
+		writeError(w, http.StatusNotFound, "invite not found")
 		return
 	}
-	if err := h.users.SetFamily(r.Context(), u.ID, f.ID, models.RoleMember); err != nil {
-		writeError(w, http.StatusInternalServerError, "internal error")
+	if inv.UsedBy != "" {
+		writeError(w, http.StatusConflict, "invite already used")
+		return
+	}
+	if time.Now().After(inv.ExpiresAt) {
+		writeError(w, http.StatusConflict, "invite expired")
 		return
 	}
 
+	if err := h.users.SetFamily(r.Context(), u.ID, inv.FamilyID, models.RoleMember); err != nil {
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	_ = h.invites.MarkUsed(r.Context(), inv.ID, u.ID)
+
+	f, err := h.families.GetFamilyByID(r.Context(), inv.FamilyID)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
 	members, _ := h.families.FamilyMembers(r.Context(), f.ID)
+
 	h.events.Broadcast(f.ID, events.Event{Type: "family.changed"})
 	writeJSON(w, http.StatusOK, models.FamilyView{Family: *f, Members: members})
 }
