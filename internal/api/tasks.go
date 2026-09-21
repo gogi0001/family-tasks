@@ -100,14 +100,14 @@ func (h *tasksHandler) create(w http.ResponseWriter, r *http.Request) {
 	if t.DueAt != nil {
 		msg += "\nСрок: " + t.DueAt.Local().Format("02.01 15:04")
 	}
-	h.ntfy.Send(
+	// в create:
+	_ = h.ntfy.Send(
 		"Новая задача от "+u.Name,
 		msg,
 		"default",
 		"memo",
 		h.ntfy.TaskClick(t.ID),
-	)
-	// ---------------------------------------
+	) // ---------------------------------------
 
 	writeJSON(w, http.StatusCreated, t)
 }
@@ -246,7 +246,8 @@ func (h *tasksHandler) notifyStatusChange(actor *models.User, t *models.Task) {
 		body += "\nСрок: " + t.DueAt.Local().Format("02.01 15:04")
 	}
 
-	h.ntfy.Send(title, body, "default", tag, h.ntfy.TaskClick(t.ID))
+	_ = h.ntfy.Send(title, body, "default", tag, h.ntfy.TaskClick(t.ID))
+
 }
 
 // --- helpers ---

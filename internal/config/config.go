@@ -7,19 +7,22 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Config — все настройки сервера.
 // Собирается из флагов, переменных окружения и дефолтов (в этом приоритете).
 type Config struct {
-	Addr      string // ":8787"
-	WebDir    string // путь к web/, если пусто — ищется автоматически
-	DBPath    string // "data/tasks.db"
-	NtfyURL   string // "http://localhost:7070", пусто = уведомления выключены
-	NtfyTopic string // "family-tasks-home"
-	NtfyClick string // "familytasks://open", пусто = без deep link
-	LogLevel  string // debug|info|warn|error
-	LogFormat string // text|json
+	Addr             string // ":8787"
+	WebDir           string // путь к web/, если пусто — ищется автоматически
+	DBPath           string // "data/tasks.db"
+	NtfyURL          string // "http://localhost:7070", пусто = уведомления выключены
+	NtfyTopic        string // "family-tasks-home"
+	NtfyClick        string // "familytasks://open", пусто = без deep link
+	LogLevel         string // debug|info|warn|error
+	LogFormat        string // text|json
+	ReminderInterval string // "5m"
+	ReminderWindow   string // "1h"
 }
 
 // Parse читает os.Args, переменные окружения и дефолты.
@@ -34,20 +37,24 @@ func Parse(args []string) (*Config, error) {
 	ntfyClick := fs.String("ntfy-click", envOr("NTFY_CLICK", ""), "deep link для тапа по уведомлению, например familytasks://open")
 	logLevel := fs.String("log-level", envOr("LOG_LEVEL", "info"), "уровень логов: debug|info|warn|error")
 	logFormat := fs.String("log-format", envOr("LOG_FORMAT", "text"), "формат логов: text|json")
+	reminderInterval := fs.String("reminder-interval", envOr("REMINDER_INTERVAL", "5m"), "как часто проверять приближающиеся сроки (например, 5m)")
+	reminderWindow := fs.String("reminder-window", envOr("REMINDER_WINDOW", "1h"), "за сколько до срока напоминать (например, 1h)")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err
 	}
 
 	c := &Config{
-		Addr:      strings.TrimSpace(*addr),
-		WebDir:    strings.TrimSpace(*webDir),
-		DBPath:    strings.TrimSpace(*dbPath),
-		NtfyURL:   strings.TrimRight(strings.TrimSpace(*ntfyURL), "/"),
-		NtfyTopic: strings.TrimSpace(*ntfyTopic),
-		NtfyClick: strings.TrimSpace(*ntfyClick),
-		LogLevel:  strings.ToLower(strings.TrimSpace(*logLevel)),
-		LogFormat: strings.ToLower(strings.TrimSpace(*logFormat)),
+		Addr:             strings.TrimSpace(*addr),
+		WebDir:           strings.TrimSpace(*webDir),
+		DBPath:           strings.TrimSpace(*dbPath),
+		NtfyURL:          strings.TrimRight(strings.TrimSpace(*ntfyURL), "/"),
+		NtfyTopic:        strings.TrimSpace(*ntfyTopic),
+		NtfyClick:        strings.TrimSpace(*ntfyClick),
+		LogLevel:         strings.ToLower(strings.TrimSpace(*logLevel)),
+		LogFormat:        strings.ToLower(strings.TrimSpace(*logFormat)),
+		ReminderInterval: strings.TrimSpace(*reminderInterval),
+		ReminderWindow:   strings.TrimSpace(*reminderWindow),
 	}
 
 	if err := c.validate(); err != nil {
@@ -96,6 +103,22 @@ func (c *Config) SlogLevel() slog.Level {
 	default:
 		return slog.LevelInfo
 	}
+}
+
+// ReminderDurations возвращает распарсенные интервал и окно.
+func (c *Config) ReminderDurations() (interval, window time.Duration, err error) {
+	interval, err = time.ParseDuration(c.ReminderInterval)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid reminder-interval: %w", err)
+	}
+	window, err = time.ParseDuration(c.ReminderWindow)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid reminder-window: %w", err)
+	}
+	if interval <= 0 || window <= 0 {
+		return 0, 0, fmt.Errorf("reminder durations must be positive")
+	}
+	return interval, window, nil
 }
 
 // Usage — текст справки. Используется для флага --help.

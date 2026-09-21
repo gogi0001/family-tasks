@@ -562,3 +562,63 @@ func (s *SQLite) RemoveFromFamily(ctx context.Context, userID string) error {
 	}
 	return nil
 }
+
+// --- reminders ---
+
+// ListDueForReminder возвращает задачи, у которых:
+//   - статус не "done",
+//   - due_at заполнен,
+//   - reminded_at ещё не проставлен,
+//   - due_at попадает в окно (now, now+window].
+//
+// Задачи с due_at в прошлом не возвращаются — «опоздавшие» напоминания
+// не имеет смысла отправлять (срок уже прошёл).
+func (s *SQLite) ListDueForReminder(ctx context.Context, window time.Duration) ([]models.DueTask, error) {
+	now := time.Now().UTC()
+	until := now.Add(window)
+
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, title, assignee, created_by, due_at
+		FROM tasks
+		WHERE status != 'done'
+		  AND due_at IS NOT NULL
+		  AND reminded_at IS NULL
+		  AND due_at <= ?
+		  AND due_at > ?
+		ORDER BY due_at ASC
+	`, until.Format(timeLayout), now.Format(timeLayout))
+	if err != nil {
+		return nil, fmt.Errorf("list due for reminder: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]models.DueTask, 0)
+	for rows.Next() {
+		var (
+			t    models.DueTask
+			dueS string
+		)
+		if err := rows.Scan(&t.ID, &t.Title, &t.Assignee, &t.CreatedBy, &dueS); err != nil {
+			return nil, err
+		}
+		due, err := time.Parse(timeLayout, dueS)
+		if err != nil {
+			return nil, fmt.Errorf("parse due_at: %w", err)
+		}
+		t.DueAt = due
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
+// MarkReminded проставляет reminded_at, чтобы больше не напоминать.
+func (s *SQLite) MarkReminded(ctx context.Context, id string, at time.Time) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE tasks SET reminded_at = ? WHERE id = ?`,
+		at.UTC().Format(timeLayout), id,
+	)
+	if err != nil {
+		return fmt.Errorf("mark reminded: %w", err)
+	}
+	return nil
+}

@@ -57,3 +57,11 @@ type UpdateTaskRequest struct {
 	// DueAt: nil — не менять, "" — очистить, иначе RFC3339.
 	DueAt *string `json:"dueAt,omitempty"`
 }
+
+type DueTask struct {
+	ID        string    `json:"id"`
+	Title     string    `json:"title"`
+	Assignee  string    `json:"assignee"`
+	CreatedBy string    `json:"createdBy"`
+	DueAt     time.Time `json:"dueAt"`
+}

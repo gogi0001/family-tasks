@@ -2,6 +2,7 @@ package notify
 
 import (
 	"bytes"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -39,14 +40,11 @@ func NewClient(baseURL, topic, click string) *Client {
 }
 
 // Send отправляет уведомление.
-// title    — заголовок (виден крупно)
-// message  — текст
-// priority — "min"|"low"|"default"|"high"|"urgent" (пусто = default)
-// tags     — emoji/иконки через запятую: "memo", "warning", "+1"
-// click    — полный URL для тапа; если пусто, используется базовый из конфига
-func (c *Client) Send(title, message, priority, tags, click string) {
+// Возвращает ошибку, если запрос не удался или ntfy ответил не 2xx.
+// nil-клиент → сразу nil (уведомления отключены).
+func (c *Client) Send(title, message, priority, tags, click string) error {
 	if c == nil {
-		return
+		return nil
 	}
 	if click == "" {
 		click = c.click
@@ -55,8 +53,7 @@ func (c *Client) Send(title, message, priority, tags, click string) {
 	url := c.baseURL + "/" + c.topic
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBufferString(message))
 	if err != nil {
-		slog.Error("ntfy: create request", "err", err)
-		return
+		return fmt.Errorf("ntfy: create request: %w", err)
 	}
 
 	if title != "" {
@@ -74,16 +71,15 @@ func (c *Client) Send(title, message, priority, tags, click string) {
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		slog.Warn("ntfy: send failed", "err", err, "url", url)
-		return
+		return fmt.Errorf("ntfy: send: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
-		slog.Warn("ntfy: server returned error", "status", resp.StatusCode)
-		return
+		return fmt.Errorf("ntfy: status %d", resp.StatusCode)
 	}
 	slog.Debug("ntfy: sent", "title", title, "click", click)
+	return nil
 }
 
 // TaskClick собирает URL на конкретную задачу из базового click.

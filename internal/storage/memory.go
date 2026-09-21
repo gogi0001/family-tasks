@@ -280,3 +280,38 @@ func (m *Memory) RemoveFromFamily(_ context.Context, userID string) error {
 	u.Role = ""
 	return nil
 }
+
+// --- reminders ---
+
+func (m *Memory) ListDueForReminder(_ context.Context, window time.Duration) ([]models.DueTask, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	now := time.Now().UTC()
+	until := now.Add(window)
+
+	out := make([]models.DueTask, 0)
+	for _, t := range m.tasks {
+		if t.Status == models.StatusDone {
+			continue
+		}
+		if t.DueAt == nil {
+			continue
+		}
+		if t.DueAt.Before(now) || t.DueAt.After(until) {
+			continue
+		}
+		out = append(out, models.DueTask{
+			ID:        t.ID,
+			Title:     t.Title,
+			Assignee:  t.Assignee,
+			CreatedBy: t.CreatedBy,
+			DueAt:     *t.DueAt,
+		})
+	}
+	return out, nil
+}
+
+func (m *Memory) MarkReminded(_ context.Context, _ string, _ time.Time) error {
+	// В памяти не храним reminded_at — не нужно для тестов.
+	return nil
+}

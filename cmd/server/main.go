@@ -16,6 +16,7 @@ import (
 	"github.com/gogi0001/family-tasks/internal/api"
 	"github.com/gogi0001/family-tasks/internal/config"
 	"github.com/gogi0001/family-tasks/internal/notify"
+	"github.com/gogi0001/family-tasks/internal/reminder"
 	"github.com/gogi0001/family-tasks/internal/storage"
 )
 
@@ -83,6 +84,15 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	// --- Напоминания о сроке ---
+	reminderInterval, reminderWindow, err := cfg.ReminderDurations()
+	if err != nil {
+		slog.Error("invalid reminder config", "err", err)
+		os.Exit(1)
+	}
+	reminderRunner := reminder.New(store, ntfyClient, reminderInterval, reminderWindow)
+	go reminderRunner.Run(ctx)
 
 	go func() {
 		<-ctx.Done()
