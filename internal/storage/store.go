@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/gogi0001/family-tasks/internal/models"
 )
@@ -69,4 +70,16 @@ type AttachmentStore interface {
 	Get(ctx context.Context, id string) (*models.Attachment, error)
 	Create(ctx context.Context, att *models.Attachment) error
 	Delete(ctx context.Context, id string) error
+}
+
+type TemplateStore interface {
+	ListTemplates(ctx context.Context, familyID string) ([]*models.TaskTemplate, error)
+	GetTemplate(ctx context.Context, familyID, id string) (*models.TaskTemplate, error)
+	CreateTemplate(ctx context.Context, t *models.TaskTemplate) error
+	UpdateTemplate(ctx context.Context, t *models.TaskTemplate) error
+	DeleteTemplate(ctx context.Context, familyID, id string) error
+
+	// Для scheduler-а.
+	ListDueTemplates(ctx context.Context, now time.Time) ([]*models.TaskTemplate, error)
+	SetTemplateNextRun(ctx context.Context, id string, next time.Time) error
 }

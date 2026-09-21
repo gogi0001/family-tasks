@@ -156,6 +156,7 @@ func (s *SQLite) List(ctx context.Context, familyID string) ([]*models.Task, err
 		SELECT id, COALESCE(family_id, ''), title, description, assignee, created_by,
 		       status, COALESCE(status_updated_by, ''),
 		       status_updated_at, due_at,
+		       template_id, scheduled_for,
 		       created_at, updated_at
 		FROM tasks
 		WHERE family_id = ?
@@ -185,6 +186,7 @@ func (s *SQLite) Get(ctx context.Context, familyID, id string) (*models.Task, er
 		SELECT id, COALESCE(family_id, ''), title, description, assignee, created_by,
 		       status, COALESCE(status_updated_by, ''),
 		       status_updated_at, due_at,
+		       template_id, scheduled_for,
 		       created_at, updated_at
 		FROM tasks
 		WHERE id = ? AND family_id = ?
@@ -195,31 +197,42 @@ func (s *SQLite) Get(ctx context.Context, familyID, id string) (*models.Task, er
 func (s *SQLite) Create(ctx context.Context, in models.TaskCreate) (*models.Task, error) {
 	now := time.Now().UTC()
 	t := &models.Task{
-		ID:          uuid.NewString(),
-		FamilyID:    in.FamilyID,
-		Title:       in.Title,
-		Description: in.Description,
-		Assignee:    in.Assignee,
-		CreatedBy:   in.CreatedBy,
-		Status:      models.StatusTodo,
-		CreatedAt:   now,
-		UpdatedAt:   now,
-		DueAt:       in.DueAt,
+		ID:           uuid.NewString(),
+		FamilyID:     in.FamilyID,
+		Title:        in.Title,
+		Description:  in.Description,
+		Assignee:     in.Assignee,
+		CreatedBy:    in.CreatedBy,
+		Status:       models.StatusTodo,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+		DueAt:        in.DueAt,
+		TemplateID:   in.TemplateID,
+		ScheduledFor: in.ScheduledFor,
 	}
 
 	var dueAt sql.NullString
 	if in.DueAt != nil {
 		dueAt = sql.NullString{String: in.DueAt.UTC().Format(timeLayout), Valid: true}
 	}
+	var templateID sql.NullString
+	if in.TemplateID != "" {
+		templateID = sql.NullString{String: in.TemplateID, Valid: true}
+	}
+	var scheduled sql.NullString
+	if in.ScheduledFor != nil {
+		scheduled = sql.NullString{String: in.ScheduledFor.UTC().Format(timeLayout), Valid: true}
+	}
 
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO tasks (
 			id, family_id, title, description, assignee, created_by,
-			status, due_at, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			status, due_at, template_id, scheduled_for,
+			created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`,
 		t.ID, t.FamilyID, t.Title, t.Description, t.Assignee, t.CreatedBy,
-		string(t.Status), dueAt,
+		string(t.Status), dueAt, templateID, scheduled,
 		t.CreatedAt.Format(timeLayout), t.UpdatedAt.Format(timeLayout),
 	)
 	if err != nil {
@@ -437,12 +450,16 @@ func scanTask(r rowScanner) (*models.Task, error) {
 		status      string
 		statusUpdAt sql.NullString
 		dueAt       sql.NullString
+		templateID  sql.NullString
+		scheduled   sql.NullString
 		createdS    string
 		updatedS    string
 	)
 	if err := r.Scan(
 		&t.ID, &t.FamilyID, &t.Title, &t.Description, &t.Assignee, &t.CreatedBy,
-		&status, &t.StatusUpdatedBy, &statusUpdAt, &dueAt, &createdS, &updatedS,
+		&status, &t.StatusUpdatedBy, &statusUpdAt, &dueAt,
+		&templateID, &scheduled,
+		&createdS, &updatedS,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ErrNotFound
@@ -450,6 +467,7 @@ func scanTask(r rowScanner) (*models.Task, error) {
 		return nil, err
 	}
 	t.Status = models.Status(status)
+	t.TemplateID = templateID.String
 
 	created, err := time.Parse(timeLayout, createdS)
 	if err != nil {
@@ -476,6 +494,13 @@ func scanTask(r rowScanner) (*models.Task, error) {
 			return nil, fmt.Errorf("parse due_at: %w", err)
 		}
 		t.DueAt = &tm
+	}
+	if scheduled.Valid && scheduled.String != "" {
+		tm, err := time.Parse(timeLayout, scheduled.String)
+		if err != nil {
+			return nil, fmt.Errorf("parse scheduled_for: %w", err)
+		}
+		t.ScheduledFor = &tm
 	}
 	return &t, nil
 }

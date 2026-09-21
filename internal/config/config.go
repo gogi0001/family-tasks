@@ -12,18 +12,19 @@ import (
 )
 
 type Config struct {
-	Addr             string
-	WebDir           string
-	DBPath           string
-	UploadsDir       string
-	MaxUploadMB      int
-	NtfyURL          string
-	NtfyTopic        string
-	NtfyClick        string
-	ReminderInterval string
-	ReminderWindow   string
-	LogLevel         string
-	LogFormat        string
+	Addr              string
+	WebDir            string
+	DBPath            string
+	UploadsDir        string
+	MaxUploadMB       int
+	NtfyURL           string
+	NtfyTopic         string
+	NtfyClick         string
+	ReminderInterval  string
+	ReminderWindow    string
+	LogLevel          string
+	LogFormat         string
+	SchedulerInterval string
 }
 
 func Parse(args []string) (*Config, error) {
@@ -41,24 +42,26 @@ func Parse(args []string) (*Config, error) {
 	reminderWindow := fs.String("reminder-window", envOr("REMINDER_WINDOW", "1h"), "за сколько до срока напоминать (например, 1h)")
 	logLevel := fs.String("log-level", envOr("LOG_LEVEL", "info"), "уровень логов: debug|info|warn|error")
 	logFormat := fs.String("log-format", envOr("LOG_FORMAT", "text"), "формат логов: text|json")
+	schedulerInterval := fs.String("scheduler-interval", envOr("SCHEDULER_INTERVAL", "15m"), "как часто проверять повторяющиеся задачи")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err
 	}
 
 	c := &Config{
-		Addr:             strings.TrimSpace(*addr),
-		WebDir:           strings.TrimSpace(*webDir),
-		DBPath:           strings.TrimSpace(*dbPath),
-		UploadsDir:       strings.TrimSpace(*uploadsDir),
-		MaxUploadMB:      *maxUploadMB,
-		NtfyURL:          strings.TrimRight(strings.TrimSpace(*ntfyURL), "/"),
-		NtfyTopic:        strings.TrimSpace(*ntfyTopic),
-		NtfyClick:        strings.TrimSpace(*ntfyClick),
-		ReminderInterval: strings.TrimSpace(*reminderInterval),
-		ReminderWindow:   strings.TrimSpace(*reminderWindow),
-		LogLevel:         strings.ToLower(strings.TrimSpace(*logLevel)),
-		LogFormat:        strings.ToLower(strings.TrimSpace(*logFormat)),
+		Addr:              strings.TrimSpace(*addr),
+		WebDir:            strings.TrimSpace(*webDir),
+		DBPath:            strings.TrimSpace(*dbPath),
+		UploadsDir:        strings.TrimSpace(*uploadsDir),
+		MaxUploadMB:       *maxUploadMB,
+		NtfyURL:           strings.TrimRight(strings.TrimSpace(*ntfyURL), "/"),
+		NtfyTopic:         strings.TrimSpace(*ntfyTopic),
+		NtfyClick:         strings.TrimSpace(*ntfyClick),
+		ReminderInterval:  strings.TrimSpace(*reminderInterval),
+		ReminderWindow:    strings.TrimSpace(*reminderWindow),
+		LogLevel:          strings.ToLower(strings.TrimSpace(*logLevel)),
+		LogFormat:         strings.ToLower(strings.TrimSpace(*logFormat)),
+		SchedulerInterval: strings.TrimSpace(*schedulerInterval),
 	}
 
 	if err := c.validate(); err != nil {
@@ -116,6 +119,18 @@ func (c *Config) SlogLevel() slog.Level {
 	default:
 		return slog.LevelInfo
 	}
+}
+
+// SchedulerDuration возвращает интервал тика scheduler-а.
+func (c *Config) SchedulerDuration() (time.Duration, error) {
+	d, err := time.ParseDuration(c.SchedulerInterval)
+	if err != nil {
+		return 0, fmt.Errorf("invalid scheduler-interval: %w", err)
+	}
+	if d <= 0 {
+		return 0, fmt.Errorf("scheduler-interval must be positive")
+	}
+	return d, nil
 }
 
 // ReminderDurations возвращает распарсенные интервал и окно.

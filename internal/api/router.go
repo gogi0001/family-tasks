@@ -23,6 +23,7 @@ type Config struct {
 	MaxUploadBytes int64
 	Ntfy           *notify.Client
 	Events         *events.Hub
+	Templates      storage.TemplateStore
 }
 
 func NewRouter(cfg Config) http.Handler {
@@ -35,6 +36,7 @@ func NewRouter(cfg Config) http.Handler {
 	authh := &authHandler{users: cfg.Users, sessions: cfg.Sessions, invites: cfg.Invites, families: cfg.Families}
 	ih := &invitesHandler{invites: cfg.Invites, families: cfg.Families}
 	sh := &sseHandler{hub: cfg.Events}
+	tmplh := &templatesHandler{templates: cfg.Templates, events: cfg.Events}
 
 	mux.HandleFunc("GET /api/v1/ping", handlePing)
 
@@ -69,6 +71,12 @@ func NewRouter(cfg Config) http.Handler {
 	mux.HandleFunc("POST /api/v1/tasks/{id}/attachments", ah.upload)
 	mux.HandleFunc("GET /api/v1/tasks/{id}/attachments/{attID}", ah.serve)
 	mux.HandleFunc("DELETE /api/v1/tasks/{id}/attachments/{attID}", ah.delete)
+
+	mux.HandleFunc("GET /api/v1/templates", tmplh.list)
+	mux.HandleFunc("POST /api/v1/templates", tmplh.create)
+	mux.HandleFunc("GET /api/v1/templates/{id}", tmplh.get)
+	mux.HandleFunc("PATCH /api/v1/templates/{id}", tmplh.update)
+	mux.HandleFunc("DELETE /api/v1/templates/{id}", tmplh.delete)
 
 	mux.HandleFunc("GET /api/v1/events", sh.stream)
 

@@ -18,6 +18,7 @@ import (
 	"github.com/gogi0001/family-tasks/internal/events"
 	"github.com/gogi0001/family-tasks/internal/notify"
 	"github.com/gogi0001/family-tasks/internal/reminder"
+	"github.com/gogi0001/family-tasks/internal/scheduler"
 	"github.com/gogi0001/family-tasks/internal/storage"
 )
 
@@ -98,6 +99,16 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	templates := storage.NewTemplatesRepo(store)
+
+	schedulerInterval, err := cfg.SchedulerDuration()
+	if err != nil {
+		slog.Error("invalid scheduler config", "err", err)
+		os.Exit(1)
+	}
+	taskScheduler := scheduler.New(templates, store, hub, schedulerInterval)
+	go taskScheduler.Run(ctx)
+
 	// --- раннер напоминаний ---
 	reminderRunner := reminder.New(store, ntfyClient, reminderInterval, reminderWindow)
 	go reminderRunner.Run(ctx)
@@ -133,6 +144,7 @@ func main() {
 			MaxUploadBytes: cfg.MaxUploadBytes(),
 			Ntfy:           ntfyClient,
 			Events:         hub,
+			Templates:      templates,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		// WriteTimeout не ставим — иначе SSE оборвётся.

@@ -32,6 +32,8 @@ type Task struct {
 	CreatedAt       time.Time    `json:"createdAt"`
 	UpdatedAt       time.Time    `json:"updatedAt"`
 	Attachments     []Attachment `json:"attachments,omitempty"`
+	TemplateID      string       `json:"templateId,omitempty"`
+	ScheduledFor    *time.Time   `json:"scheduledFor,omitempty"`
 }
 
 type CreateTaskRequest struct {
@@ -42,12 +44,14 @@ type CreateTaskRequest struct {
 }
 
 type TaskCreate struct {
-	FamilyID    string
-	Title       string
-	Description string
-	Assignee    string
-	CreatedBy   string
-	DueAt       *time.Time
+	FamilyID     string
+	Title        string
+	Description  string
+	Assignee     string
+	CreatedBy    string
+	DueAt        *time.Time
+	TemplateID   string
+	ScheduledFor *time.Time
 }
 
 type UpdateTaskRequest struct {
