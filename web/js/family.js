@@ -90,7 +90,7 @@ function renderFamilyModal() {
 export function renderFamily() {
   const has = !!state.family;
 
-  els.familyGate.hidden = !has;
+  els.familyGate.hidden = has;      // ← вот тут был баг
   els.tasksArea.hidden = !has;
   els.addTaskFab.hidden = !has;
   els.familyOpen.hidden = !has;
@@ -101,10 +101,8 @@ export function renderFamily() {
     return;
   }
 
-  // Если модалка открыта — обновим её содержимое.
   if (isFamilyModalOpen()) renderFamilyModal();
 
-  // Список исполнителей (нужен форме добавления).
   const previous = els.assignee.value;
   els.assignee.replaceChildren();
   const ph = document.createElement('option');
