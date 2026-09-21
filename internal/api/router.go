@@ -118,3 +118,18 @@ func (w *apiNotFoundRecorder) Write(b []byte) (int, error) {
 	}
 	return w.ResponseWriter.Write(b)
 }
+
+// Flush пробрасывает http.Flusher нижележащему writer-у.
+// Без него SSE (`text/event-stream`) не работает — хендлер не может
+// сделать `w.(http.Flusher)` и отдаёт 500.
+func (w *apiNotFoundRecorder) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// Unwrap — стандартный способ дать http.ResponseController и подобным
+// утилитам добраться до исходного writer-а.
+func (w *apiNotFoundRecorder) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
+}
