@@ -19,6 +19,9 @@
       </span>
     </div>
     <div class="who">
+      <button id="family-open" type="button" title="Управление семьёй" hidden>
+        <span class="family-open-icon">👥</span>
+      </button>
       <button id="who-avatar" type="button" title="Сменить цвет">
         <span id="who-avatar-letter"></span>
       </button>
@@ -28,17 +31,6 @@
   </header>
 
   <main>
-    <section id="family-box" hidden>
-      <div class="family-head">
-        <span id="family-name"></span>
-        <div class="family-code-block">
-          <span class="chip muted">код: <b id="family-code"></b></span>
-          <button id="family-regen" type="button" hidden title="Перевыпустить код">↻</button>
-        </div>
-      </div>
-      <div id="family-members" class="task-meta"></div>
-    </section>
-
     <section id="family-gate" hidden>
       <div class="card">
         <h2>Создать семью</h2>
@@ -138,6 +130,29 @@
       <input id="name-input" placeholder="Имя" maxlength="60" autocomplete="name" required>
       <button type="submit">Продолжить</button>
     </form>
+  </div>
+
+  <!-- Модалка управления семьёй -->
+  <div id="family-modal">
+    <div class="family-modal-card">
+      <div class="family-modal-head">
+        <h2 id="family-modal-title"></h2>
+        <button type="button" id="family-modal-close" title="Закрыть">×</button>
+      </div>
+
+      <div class="family-modal-code">
+        <span class="label">Код приглашения</span>
+        <b id="family-modal-code"></b>
+        <button type="button" id="family-modal-regen" title="Перевыпустить код" hidden>↻</button>
+      </div>
+
+      <div class="family-modal-members-label">Участники</div>
+      <div id="family-modal-members" class="task-meta"></div>
+
+      <div class="modal-actions">
+        <button type="button" id="family-modal-close-btn">Закрыть</button>
+      </div>
+    </div>
   </div>
 
   <div id="color-picker" hidden>

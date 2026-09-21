@@ -21,16 +21,20 @@ export const els = {
   nameInput: $('name-input'),
 
   // Семья
-  familyBox: $('family-box'),
-  familyName: $('family-name'),
-  familyCode: $('family-code'),
-  familyRegen: $('family-regen'),
-  familyMembers: $('family-members'),
+  familyOpen: $('family-open'),
   familyGate: $('family-gate'),
   createForm: $('family-create-form'),
   createInput: $('family-name-input'),
   joinForm: $('family-join-form'),
   joinInput: $('family-code-input'),
+
+  familyModal: $('family-modal'),
+  familyModalTitle: $('family-modal-title'),
+  familyModalCode: $('family-modal-code'),
+  familyModalRegen: $('family-modal-regen'),
+  familyModalMembers: $('family-modal-members'),
+  familyModalClose: $('family-modal-close'),
+  familyModalCloseBtn: $('family-modal-close-btn'),
 
   // Задачи и тулбар
   tasksArea: $('tasks-area'),

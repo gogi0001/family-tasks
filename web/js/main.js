@@ -15,6 +15,7 @@ checkDom();
 on('unauthorized', () => {
   log('event: unauthorized — reset');
   tasks.closeAddModal();
+  family.closeFamilyModal();          // ← новое
   state.user = null;
   state.family = null;
   state.tasks = [];
@@ -27,6 +28,7 @@ on('unauthorized', () => {
 on('logged-out', () => {
   log('event: logged-out');
   tasks.closeAddModal();
+  family.closeFamilyModal();          // ← новое
   state.family = null;
   state.tasks = [];
   user.renderUser();

@@ -98,22 +98,6 @@ main {
   padding: 12px 16px 96px;
 }
 
-/* --- Family box --- */
-.family-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-#family-box {
-  margin-bottom: 16px;
-  padding: 12px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-}
 
 /* --- Family gate --- */
 #family-gate {
@@ -621,29 +605,6 @@ main {
   }
 }
 
-/* --- Family: код приглашения и управление участниками --- */
-.family-code-block {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-#family-regen {
-  padding: 3px 8px;
-  font: inherit;
-  font-size: 15px;
-  line-height: 1;
-  color: var(--muted);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-#family-regen:active {
-  background: var(--bg);
-}
-
 .chip .chip-remove {
   margin-left: 6px;
   padding: 0 4px;
@@ -828,4 +789,164 @@ main {
   .filter-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* --- Кнопка "Семья" в шапке --- */
+#family-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+#family-open:active {
+  background: var(--bg);
+}
+
+.family-open-icon {
+  font-size: 16px;
+}
+
+/* --- Модалка семьи --- */
+#family-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 22, 26, 0.4);
+  padding: 16px;
+}
+
+#family-modal.open {
+  display: flex;
+}
+
+.family-modal-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.family-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.family-modal-head h2 {
+  margin: 0;
+  font-size: 18px;
+  word-break: break-word;
+}
+
+#family-modal-close {
+  flex-shrink: 0;
+  padding: 0 6px;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+#family-modal-close:active {
+  color: var(--text);
+}
+
+.family-modal-code {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.family-modal-code .label {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.family-modal-code b {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 18px;
+  letter-spacing: 1px;
+  word-break: break-all;
+}
+
+#family-modal-regen {
+  padding: 4px 10px;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#family-modal-regen:active {
+  background: #fff;
+}
+
+.family-modal-members-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Кнопка "Закрыть" в модалке — как "Отмена" в других модалках */
+#family-modal .modal-actions {
+  display: block;
+}
+
+#family-modal-close-btn {
+  width: 100%;
+  padding: 11px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#family-modal-close-btn:active {
+  background: var(--bg);
+}
+
+/* Отступ на случай, если chip с кнопкой на узком экране */
+.chip .chip-remove {
+  margin-left: 6px;
+  padding: 0 4px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.chip .chip-remove:active {
+  color: var(--err);
 }
