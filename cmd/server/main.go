@@ -56,6 +56,9 @@ func main() {
 		}
 	}()
 
+	// --- ntfy ---
+	ntfyClient := notify.NewClient(cfg.NtfyURL, cfg.NtfyTopic, cfg.NtfyClick)
+
 	slog.Info("starting server",
 		"addr", cfg.Addr,
 		"web_dir", webDir,
@@ -63,9 +66,8 @@ func main() {
 		"ntfy_enabled", cfg.NtfyEnabled(),
 		"ntfy_url", cfg.NtfyURL,
 		"ntfy_topic", cfg.NtfyTopic,
+		"ntfy_click", cfg.NtfyClick,
 	)
-
-	ntfyClient := notify.NewClient(cfg.NtfyURL, cfg.NtfyTopic)
 
 	srv := &http.Server{
 		Addr: cfg.Addr,

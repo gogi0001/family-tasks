@@ -15,22 +15,23 @@ type Config struct {
 	Addr      string // ":8787"
 	WebDir    string // путь к web/, если пусто — ищется автоматически
 	DBPath    string // "data/tasks.db"
-	NtfyURL   string // "http://localhost:8080", пусто = уведомления выключены
+	NtfyURL   string // "http://localhost:7070", пусто = уведомления выключены
 	NtfyTopic string // "family-tasks-home"
+	NtfyClick string // "familytasks://open", пусто = без deep link
 	LogLevel  string // debug|info|warn|error
 	LogFormat string // text|json
 }
 
 // Parse читает os.Args, переменные окружения и дефолты.
-// Возвращает конфиг и error (например, при кривых флагах).
 func Parse(args []string) (*Config, error) {
 	fs := flag.NewFlagSet("family-tasks", flag.ContinueOnError)
 
 	addr := fs.String("addr", envOr("ADDR", ":8787"), "адрес и порт, например :8787")
 	webDir := fs.String("web-dir", envOr("WEB_DIR", ""), "путь к папке web/ (по умолчанию ищется рядом)")
 	dbPath := fs.String("db", envOr("DB_PATH", filepath.Join("data", "tasks.db")), "путь к файлу SQLite")
-	ntfyURL := fs.String("ntfy-url", envOr("NTFY_URL", ""), "базовый URL ntfy, например http://localhost:8080")
+	ntfyURL := fs.String("ntfy-url", envOr("NTFY_URL", ""), "базовый URL ntfy, например http://localhost:7070")
 	ntfyTopic := fs.String("ntfy-topic", envOr("NTFY_TOPIC", ""), "topic ntfy, на который подписаны телефоны")
+	ntfyClick := fs.String("ntfy-click", envOr("NTFY_CLICK", ""), "deep link для тапа по уведомлению, например familytasks://open")
 	logLevel := fs.String("log-level", envOr("LOG_LEVEL", "info"), "уровень логов: debug|info|warn|error")
 	logFormat := fs.String("log-format", envOr("LOG_FORMAT", "text"), "формат логов: text|json")
 
@@ -44,6 +45,7 @@ func Parse(args []string) (*Config, error) {
 		DBPath:    strings.TrimSpace(*dbPath),
 		NtfyURL:   strings.TrimRight(strings.TrimSpace(*ntfyURL), "/"),
 		NtfyTopic: strings.TrimSpace(*ntfyTopic),
+		NtfyClick: strings.TrimSpace(*ntfyClick),
 		LogLevel:  strings.ToLower(strings.TrimSpace(*logLevel)),
 		LogFormat: strings.ToLower(strings.TrimSpace(*logFormat)),
 	}
@@ -71,7 +73,6 @@ func (c *Config) validate() error {
 	default:
 		return fmt.Errorf("invalid log format %q (want text|json)", c.LogFormat)
 	}
-	// ntfy: либо оба поля, либо ни одного.
 	if (c.NtfyURL == "") != (c.NtfyTopic == "") {
 		return fmt.Errorf("ntfy-url and ntfy-topic must be set together")
 	}
@@ -107,7 +108,7 @@ func Usage(fs *flag.FlagSet) func() {
 		fmt.Fprintln(fs.Output(), "Examples:")
 		fmt.Fprintln(fs.Output(), "  family-tasks")
 		fmt.Fprintln(fs.Output(), "  family-tasks -addr :9000 -db /var/lib/family-tasks/tasks.db")
-		fmt.Fprintln(fs.Output(), "  family-tasks -ntfy-url http://localhost:8080 -ntfy-topic family-tasks-home")
+		fmt.Fprintln(fs.Output(), "  family-tasks -ntfy-url http://localhost:7070 -ntfy-topic family-tasks-home -ntfy-click familytasks://open")
 	}
 }
 

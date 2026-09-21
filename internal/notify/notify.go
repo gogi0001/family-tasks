@@ -12,20 +12,27 @@ import (
 type Client struct {
 	baseURL string
 	topic   string
+	click   string // deep link для тапа по уведомлению
 	http    *http.Client
 }
 
 // NewClient создаёт клиент. Если baseURL или topic пусты — возвращает nil,
 // и уведомления отключаются автоматически.
-func NewClient(baseURL, topic string) *Client {
+// click может быть пустым — тогда заголовок Click не отправляется.
+func NewClient(baseURL, topic, click string) *Client {
 	if baseURL == "" || topic == "" {
 		slog.Info("ntfy notifications disabled (url or topic not set)")
 		return nil
 	}
-	slog.Info("ntfy notifications enabled", "url", baseURL, "topic", topic)
+	slog.Info("ntfy notifications enabled",
+		"url", baseURL,
+		"topic", topic,
+		"click", click,
+	)
 	return &Client{
 		baseURL: baseURL,
 		topic:   topic,
+		click:   click,
 		http:    &http.Client{Timeout: 5 * time.Second},
 	}
 }
@@ -48,13 +55,16 @@ func (c *Client) Send(title, message, priority, tags string) {
 	}
 
 	if title != "" {
-		req.Header.Set("Title", encodeHeader(title))
+		req.Header.Set("Title", title)
 	}
 	if priority != "" {
 		req.Header.Set("Priority", priority)
 	}
 	if tags != "" {
 		req.Header.Set("Tags", tags)
+	}
+	if c.click != "" {
+		req.Header.Set("Click", c.click)
 	}
 
 	resp, err := c.http.Do(req)
@@ -69,12 +79,4 @@ func (c *Client) Send(title, message, priority, tags string) {
 		return
 	}
 	slog.Debug("ntfy: sent", "title", title)
-}
-
-// encodeHeader — ntfy ожидает заголовки в UTF-8, но HTTP-хедеры формально
-// ASCII. Go это не мешает (шлёт как есть), но некоторые прокси ломают
-// кириллицу. Используем "RFC 2047"-подобный вариант, ntfy его понимает.
-func encodeHeader(s string) string {
-	// Простейший путь — оставить как есть, ntfy корректно принимает UTF-8.
-	return s
 }
