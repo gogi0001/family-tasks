@@ -260,6 +260,7 @@ function renderTask(t) {
   }
   card.appendChild(meta);
 
+  // Даты
   const dates = document.createElement('div');
   dates.className = 'task-dates';
 
@@ -288,8 +289,10 @@ function renderTask(t) {
   }
   card.appendChild(dates);
 
+  // Вложения
   card.appendChild(renderAttachments(t.id, t.attachments || []));
 
+  // Статусы
   const updater = t.statusUpdatedBy ? memberByID(t.statusUpdatedBy) : null;
   const activeColor = updater?.color || null;
 
@@ -393,6 +396,37 @@ function fillFilterSelect(select, members, currentValue) {
   return valid ? currentValue : '';
 }
 
+// --- Подсветка задачи по deep link ---
+
+export function highlightTask(id) {
+  if (!id) return;
+  console.log('[app] highlightTask:', id);
+
+  const attempt = (triesLeft) => {
+    document.querySelectorAll('.task.task-highlight')
+      .forEach(el => el.classList.remove('task-highlight'));
+
+    const el = document.querySelector(`.task[data-id="${CSS.escape(id)}"]`);
+    if (!el) {
+      if (triesLeft > 0) {
+        setTimeout(() => attempt(triesLeft - 1), 500);
+      } else {
+        console.warn('[app] highlightTask: not found', id);
+      }
+      return;
+    }
+
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('task-highlight');
+    setTimeout(() => el.classList.remove('task-highlight'), 4000);
+
+    history.replaceState(null, '', location.pathname + location.search);
+    console.log('[app] highlightTask: done', id);
+  };
+
+  attempt(30);
+}
+
 // --- Init ---
 
 export function init() {
@@ -474,7 +508,7 @@ export function init() {
       closeAddModal();
       await load();
     } catch (err) {
-      if (err.status === 401) return;
+      if (err.status === 401) { emit('unauthenticated'); return; }
       toast(err.message, 'error');
     }
   });

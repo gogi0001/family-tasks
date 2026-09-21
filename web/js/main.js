@@ -58,6 +58,7 @@ on('family-updated', async () => {
   family.renderFamily();
   tasks.refreshFilterOptions();
   await tasks.load();
+  handleTaskHash();
 });
 
 on('user-updated', () => {
@@ -108,6 +109,18 @@ invites.init();
 attachments.init();
 connection.renderConnection();
 
+// --- Deep link: #task=<id> ---
+
+function handleTaskHash() {
+  const m = location.hash.match(/(?:^#|&)task=([^&]+)/);
+  if (!m) return;
+  const id = decodeURIComponent(m[1]);
+  log('deep link: task =', id);
+  tasks.highlightTask(id);
+}
+
+window.addEventListener('hashchange', handleTaskHash);
+
 // --- Boot ---
 
 async function boot() {
@@ -117,10 +130,15 @@ async function boot() {
     await family.enterFamilyFlow();
     sse.start();
     startRefreshFallback();
+    handleTaskHash();
   } catch (e) {
-    if (e.status === 401) auth.openAuthModal();
-    else if (e.status === 0) { /* offline */ }
-    else console.error('[app] boot failed', e);
+    if (e.status === 401) {
+      auth.openAuthModal();
+    } else if (e.status === 0) {
+      // offline
+    } else {
+      console.error('[app] boot failed', e);
+    }
   }
 }
 
