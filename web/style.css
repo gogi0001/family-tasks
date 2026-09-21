@@ -1180,13 +1180,19 @@ button.attachment-add.is-empty {
 .invite-link {
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
   min-width: 0;
+  flex: 1;
 }
 
-.invite-link b {
+.invite-link b,
+.invite-code {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 12px;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .invite-status {

@@ -46,8 +46,9 @@ function renderInvites(list) {
         const link = document.createElement('div');
         link.className = 'invite-link';
         const codeEl = document.createElement('b');
-        codeEl.textContent = inv.code.slice(0, 12) + '…';
+        codeEl.textContent = inv.code;
         codeEl.title = inv.code;
+        codeEl.classList.add('invite-code');
         link.appendChild(codeEl);
         const statusEl = document.createElement('span');
         statusEl.className = 'invite-status ' + (used || expired ? 'muted' : 'ok');
