@@ -9,11 +9,13 @@ import (
 	"time"
 
 	"github.com/gogi0001/family-tasks/internal/models"
+	"github.com/gogi0001/family-tasks/internal/notify"
 	"github.com/gogi0001/family-tasks/internal/storage"
 )
 
 type tasksHandler struct {
 	store storage.TaskStore
+	ntfy  *notify.Client
 }
 
 // requireFamily проверяет, что пользователь идентифицирован и состоит в семье.
@@ -104,6 +106,20 @@ func (h *tasksHandler) create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
+
+	// --- push-уведомление ---
+	msg := "Задача для " + t.Assignee + ": " + t.Title
+	if t.DueAt != nil {
+		msg += "\nСрок: " + t.DueAt.Local().Format("02.01 15:04")
+	}
+	h.ntfy.Send(
+		"Новая задача от "+u.Name,
+		msg,
+		"default",
+		"memo",
+	)
+	// -------------------------
+
 	writeJSON(w, http.StatusCreated, t)
 }
 

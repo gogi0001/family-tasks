@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gogi0001/family-tasks/internal/notify"
 	"github.com/gogi0001/family-tasks/internal/storage"
 )
 
@@ -15,12 +16,17 @@ type Config struct {
 	Tasks    storage.TaskStore
 	Users    storage.UserStore
 	Families storage.FamilyStore
+	Ntfy     *notify.Client // ← новое
+
 }
 
 func NewRouter(cfg Config) http.Handler {
 	mux := http.NewServeMux()
 
-	th := &tasksHandler{store: cfg.Tasks}
+	th := &tasksHandler{
+		store: cfg.Tasks,
+		ntfy:  cfg.Ntfy,
+	}
 	mh := &meHandler{users: cfg.Users}
 	fh := &familyHandler{families: cfg.Families, users: cfg.Users}
 

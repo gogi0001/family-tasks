@@ -15,6 +15,7 @@ import (
 
 	"github.com/gogi0001/family-tasks/internal/api"
 	"github.com/gogi0001/family-tasks/internal/config"
+	"github.com/gogi0001/family-tasks/internal/notify"
 	"github.com/gogi0001/family-tasks/internal/storage"
 )
 
@@ -64,6 +65,8 @@ func main() {
 		"ntfy_topic", cfg.NtfyTopic,
 	)
 
+	ntfyClient := notify.NewClient(cfg.NtfyURL, cfg.NtfyTopic)
+
 	srv := &http.Server{
 		Addr: cfg.Addr,
 		Handler: api.NewRouter(api.Config{
@@ -71,6 +74,7 @@ func main() {
 			Tasks:    store,
 			Users:    store,
 			Families: store,
+			Ntfy:     ntfyClient,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
