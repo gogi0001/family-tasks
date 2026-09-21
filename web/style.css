@@ -1,4 +1,4 @@
-/* --- Reset & variables --- */
+/* ─── Reset & variables ─────────────────────────── */
 * {
   box-sizing: border-box;
 }
@@ -34,7 +34,7 @@ body {
   padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
 }
 
-/* --- Header --- */
+/* ─── Header ────────────────────────────────────── */
 header {
   position: sticky;
   top: 0;
@@ -53,503 +53,11 @@ h1 {
   margin: 0;
 }
 
-.who {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: var(--muted);
-}
-
-#who-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: none;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 15px;
-  color: #fff;
-  cursor: pointer;
-}
-
-#who-logout {
-  padding: 2px 8px;
-  font-size: 16px;
-  line-height: 1;
-  color: var(--muted);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-#who-logout:active {
-  background: var(--bg);
-}
-
-/* --- Main --- */
-main {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 12px 16px 96px;
-}
-
-
-/* --- Family gate --- */
-#family-gate {
-  display: grid;
-  gap: 12px;
-}
-
-.card {
-  padding: 12px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  display: grid;
-  gap: 8px;
-}
-
-.card h2 {
-  margin: 0;
-  font-size: 16px;
-}
-
-.card input {
-  padding: 10px 12px;
-  font: inherit;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
-.card button {
-  padding: 10px;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-  color: #fff;
-  background: var(--accent);
-  border: none;
-  border-radius: 8px;
-}
-
-/* --- Tasks list --- */
-#tasks {
-  display: grid;
-  gap: 12px;
-}
-
-.task {
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-}
-
-.task[data-status="done"] .task-title {
-  text-decoration: line-through;
-  color: var(--muted);
-}
-
-.task-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.task-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  word-break: break-word;
-}
-
-.task-desc {
-  margin: 0;
-  font-size: 14px;
-  color: var(--muted);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.icon-btn {
-  padding: 4px 8px;
-  font-size: 20px;
-  line-height: 1;
-  color: var(--muted);
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.icon-btn:active {
-  background: var(--bg);
-}
-
-.task-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.chip {
-  display: inline-block;
-  padding: 3px 8px;
-  font-size: 13px;
-  border-radius: 999px;
-  background: var(--bg);
-  color: var(--text);
-}
-
-.chip.muted {
-  color: var(--muted);
-}
-
-.chip .dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 6px;
-  vertical-align: middle;
-}
-
-/* --- Status buttons --- */
-.statuses {
-  display: flex;
-  gap: 6px;
-}
-
-.status-btn {
-  flex: 1;
-  padding: 8px 6px;
-  font: inherit;
-  font-size: 13px;
-  color: var(--muted);
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.status-btn.active {
-  color: #fff;
-  border-color: transparent;
-}
-
-.status-btn[data-status="todo"].active {
-  background: #6b7280;
-}
-
-.status-btn[data-status="in_progress"].active {
-  background: #d99000;
-}
-
-.status-btn[data-status="done"].active {
-  background: var(--ok);
-}
-
-#empty {
-  padding: 24px 0;
-  text-align: center;
-  color: var(--muted);
-}
-
-/* --- FAB --- */
-#add-task-fab {
-  position: fixed;
-  right: 20px;
-  bottom: calc(20px + env(safe-area-inset-bottom));
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: none;
-  background: var(--accent);
-  color: #fff;
-  font-size: 28px;
-  line-height: 1;
-  font-weight: 300;
-  padding: 0;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-  z-index: 90;
-}
-
-#add-task-fab:active {
-  filter: brightness(0.95);
-}
-
-/* --- Modal: add task --- */
-#add-task-modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  align-items: center;
-  justify-content: center;
-  background: rgba(20, 22, 26, 0.4);
-  padding: 16px;
-}
-
-#add-task-modal.open {
-  display: flex;
-}
-
-#add-task-modal form {
-  width: 100%;
-  max-width: 380px;
-  background: var(--card);
-  border-radius: 12px;
-  padding: 20px;
-  display: grid;
-  gap: 12px;
-}
-
-#add-task-modal h2 {
-  margin: 0 0 4px;
-  font-size: 18px;
-}
-
-#add-task-modal input,
-#add-task-modal select {
-  width: 100%;
-  padding: 10px 12px;
-  font: inherit;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--text);
-}
-
-#add-task-modal input:focus,
-#add-task-modal select:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: -1px;
-}
-
-.modal-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.modal-actions button {
-  padding: 11px;
-  font: inherit;
-  font-weight: 600;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-#add-task-cancel {
-  background: transparent;
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-
-#add-task-modal button[type="submit"] {
-  background: var(--accent);
-  color: #fff;
-  border: none;
-}
-
-#add-task-modal button[type="submit"]:active,
-#add-task-cancel:active {
-  filter: brightness(0.95);
-}
-
-/* --- Modal: name --- */
-#name-modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  align-items: center;
-  justify-content: center;
-  background: rgba(20, 22, 26, 0.4);
-  padding: 16px;
-}
-
-#name-modal.open {
-  display: flex;
-}
-
-#name-modal form {
-  width: 100%;
-  max-width: 320px;
-  background: var(--card);
-  border-radius: 12px;
-  padding: 20px;
-  display: grid;
-  gap: 12px;
-}
-
-#name-modal h2 {
-  margin: 0;
-  font-size: 18px;
-}
-
-#name-modal input {
-  padding: 10px 12px;
-  font: inherit;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
-#name-modal button {
-  padding: 12px;
-  font: inherit;
-  font-weight: 600;
-  color: #fff;
-  background: var(--accent);
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-/* --- Color picker --- */
-#color-picker {
-  position: fixed;
-  top: calc(56px + env(safe-area-inset-top));
-  right: 16px;
-  z-index: 150;
-  padding: 12px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-}
-
-#color-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-}
-
-.color-swatch {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
-
-.color-swatch.active {
-  outline: 2px solid var(--text);
-  outline-offset: 2px;
-}
-
-/* --- Toast --- */
-#toast {
-  position: fixed;
-  left: 50%;
-  bottom: calc(88px + env(safe-area-inset-bottom));
-  /* выше FAB */
-  transform: translateX(-50%);
-  padding: 10px 16px;
-  font-size: 14px;
-  max-width: 90vw;
-  background: #14161a;
-  color: #fff;
-  border-radius: 8px;
-  z-index: 300;
-}
-
-#toast.error {
-  background: var(--err);
-}
-
-/* Toolbar */
-.toolbar {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.segmented {
-  display: inline-flex;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 2px;
-}
-
-.segmented button {
-  padding: 6px 12px;
-  font: inherit;
-  font-size: 14px;
-  border: none;
-  background: transparent;
-  border-radius: 6px;
-  color: var(--muted);
-  cursor: pointer;
-}
-
-.segmented button.active {
-  background: var(--accent);
-  color: #fff;
-}
-
-#task-sort {
-  padding: 6px 10px;
-  font: inherit;
-  font-size: 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--card);
-  color: var(--text);
-  cursor: pointer;
-}
-
-/* Поле в форме с меткой */
-#add-task-modal .field {
-  display: grid;
-  gap: 4px;
-}
-
-#add-task-modal .field-label {
-  font-size: 13px;
-  color: var(--muted);
-}
-
-/* Даты в карточке */
-.task-dates {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.task-dates .overdue {
-  color: var(--err);
-  font-weight: 600;
-}
-
-.task-dates .done-muted {
-  color: var(--muted);
-}
-
-/* --- Connection badge --- */
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
 .conn {
@@ -594,53 +102,110 @@ main {
   }
 }
 
-/* На очень узких экранах оставляем только точку */
-@media (max-width: 380px) {
-  #conn-text {
-    display: none;
-  }
-
-  .conn {
-    padding: 5px;
-  }
+.who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--muted);
 }
 
-.chip .chip-remove {
-  margin-left: 6px;
-  padding: 0 4px;
-  font: inherit;
-  font-size: 14px;
-  line-height: 1;
-  color: var(--muted);
-  background: transparent;
+#who-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
   border: none;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 15px;
+  color: #fff;
   cursor: pointer;
 }
 
-.chip .chip-remove:active {
-  color: var(--err);
+#who-logout {
+  padding: 2px 8px;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
 }
 
-/* Подсветка задачи, к которой пришли по deep link */
-.task.task-highlight {
-  animation: task-flash 4s ease-out;
+#who-logout:active {
+  background: var(--bg);
 }
 
-@keyframes task-flash {
-  0% {
-    box-shadow: 0 0 0 3px var(--accent), 0 0 0 8px rgba(42, 109, 244, 0.25);
-  }
-
-  60% {
-    box-shadow: 0 0 0 3px var(--accent), 0 0 0 8px rgba(42, 109, 244, 0.10);
-  }
-
-  100% {
-    box-shadow: none;
-  }
+#family-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
 }
 
-/* --- Toolbar (расширенный) --- */
+#family-open:active {
+  background: var(--bg);
+}
+
+/* ─── Main ──────────────────────────────────────── */
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 12px 16px 96px;
+}
+
+/* ─── Family gate (нет семьи) ───────────────────── */
+#family-gate {
+  display: grid;
+  gap: 12px;
+}
+
+.card {
+  padding: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.card input {
+  padding: 10px 12px;
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.card button {
+  padding: 10px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+}
+
+/* ─── Toolbar ───────────────────────────────────── */
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -731,7 +296,7 @@ main {
   cursor: pointer;
 }
 
-/* --- Filter panel --- */
+/* ─── Filter panel ─────────────────────────────── */
 #filter-panel {
   background: var(--card);
   border: 1px solid var(--border);
@@ -785,38 +350,351 @@ main {
   background: var(--bg);
 }
 
-@media (max-width: 460px) {
-  .filter-grid {
-    grid-template-columns: 1fr;
-  }
+/* ─── Tasks list ───────────────────────────────── */
+#tasks {
+  display: grid;
+  gap: 12px;
 }
 
-/* --- Кнопка "Семья" в шапке --- */
-#family-open {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  font-size: 18px;
+.task {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.task[data-status="done"] .task-title {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.task-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.task-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.task-desc {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.icon-btn {
+  padding: 4px 8px;
+  font-size: 20px;
   line-height: 1;
   color: var(--muted);
   background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 50%;
+  border: none;
+  border-radius: 6px;
   cursor: pointer;
 }
 
-#family-open:active {
+.icon-btn:active {
   background: var(--bg);
 }
 
-.family-open-icon {
-  font-size: 16px;
+.task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-/* --- Модалка семьи --- */
+.chip {
+  display: inline-block;
+  padding: 3px 8px;
+  font-size: 13px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.chip.muted {
+  color: var(--muted);
+}
+
+.chip .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.chip .chip-remove {
+  margin-left: 6px;
+  padding: 0 4px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.chip .chip-remove:active {
+  color: var(--err);
+}
+
+.task-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.task-dates .overdue {
+  color: var(--err);
+  font-weight: 600;
+}
+
+.task-dates .done-muted {
+  color: var(--muted);
+}
+
+/* Подсветка задачи, к которой пришли по deep link */
+.task.task-highlight {
+  animation: task-flash 4s ease-out;
+}
+
+@keyframes task-flash {
+  0% {
+    box-shadow: 0 0 0 3px var(--accent), 0 0 0 8px rgba(42, 109, 244, 0.25);
+  }
+
+  60% {
+    box-shadow: 0 0 0 3px var(--accent), 0 0 0 8px rgba(42, 109, 244, 0.10);
+  }
+
+  100% {
+    box-shadow: none;
+  }
+}
+
+/* ─── Status buttons ───────────────────────────── */
+.statuses {
+  display: flex;
+  gap: 6px;
+}
+
+.status-btn {
+  flex: 1;
+  padding: 8px 6px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--muted);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.status-btn.active {
+  color: #fff;
+  border-color: transparent;
+}
+
+.status-btn[data-status="todo"].active {
+  background: #6b7280;
+}
+
+.status-btn[data-status="in_progress"].active {
+  background: #d99000;
+}
+
+.status-btn[data-status="done"].active {
+  background: var(--ok);
+}
+
+#empty {
+  padding: 24px 0;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* ─── FAB ──────────────────────────────────────── */
+#add-task-fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 300;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  z-index: 90;
+}
+
+#add-task-fab:active {
+  filter: brightness(0.95);
+}
+
+/* ─── Modal: add task ──────────────────────────── */
+#add-task-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 22, 26, 0.4);
+  padding: 16px;
+}
+
+#add-task-modal.open {
+  display: flex;
+}
+
+#add-task-modal form {
+  width: 100%;
+  max-width: 380px;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 20px;
+  display: grid;
+  gap: 12px;
+}
+
+#add-task-modal h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+#add-task-modal input,
+#add-task-modal select {
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+}
+
+#add-task-modal input:focus,
+#add-task-modal select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+#add-task-modal .field {
+  display: grid;
+  gap: 4px;
+}
+
+#add-task-modal .field-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.modal-actions button {
+  padding: 11px;
+  font: inherit;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#add-task-cancel {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+#add-task-modal button[type="submit"] {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+}
+
+#add-task-modal button[type="submit"]:active,
+#add-task-cancel:active {
+  filter: brightness(0.95);
+}
+
+/* ─── Modal: name ──────────────────────────────── */
+#name-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 22, 26, 0.4);
+  padding: 16px;
+}
+
+#name-modal.open {
+  display: flex;
+}
+
+#name-modal form {
+  width: 100%;
+  max-width: 320px;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 20px;
+  display: grid;
+  gap: 12px;
+}
+
+#name-modal h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+#name-modal input {
+  padding: 10px 12px;
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+#name-modal button {
+  padding: 12px;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* ─── Modal: family ────────────────────────────── */
 #family-modal {
   display: none;
   position: fixed;
@@ -913,7 +791,6 @@ main {
   color: var(--muted);
 }
 
-/* Кнопка "Закрыть" в модалке — как "Отмена" в других модалках */
 #family-modal .modal-actions {
   display: block;
 }
@@ -934,19 +811,75 @@ main {
   background: var(--bg);
 }
 
-/* Отступ на случай, если chip с кнопкой на узком экране */
-.chip .chip-remove {
-  margin-left: 6px;
-  padding: 0 4px;
-  font: inherit;
-  font-size: 14px;
-  line-height: 1;
-  color: var(--muted);
-  background: transparent;
+/* ─── Color picker ─────────────────────────────── */
+#color-picker {
+  position: fixed;
+  top: calc(56px + env(safe-area-inset-top));
+  right: 16px;
+  z-index: 150;
+  padding: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+#color-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.color-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
   border: none;
+  padding: 0;
   cursor: pointer;
 }
 
-.chip .chip-remove:active {
-  color: var(--err);
+.color-swatch.active {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+/* ─── Toast ────────────────────────────────────── */
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(88px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  font-size: 14px;
+  max-width: 90vw;
+  background: #14161a;
+  color: #fff;
+  border-radius: 8px;
+  z-index: 300;
+}
+
+#toast.error {
+  background: var(--err);
+}
+
+/* ─── Responsive tweaks ────────────────────────── */
+@media (max-width: 460px) {
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 380px) {
+  #conn-text {
+    display: none;
+  }
+
+  .conn {
+    padding: 5px;
+  }
+
+  #who-name {
+    display: none;
+  }
 }
