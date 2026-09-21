@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -19,7 +20,6 @@ type tasksHandler struct {
 }
 
 // requireFamily проверяет, что пользователь идентифицирован и состоит в семье.
-// При ошибке сам пишет ответ и возвращает ok=false.
 func requireFamily(w http.ResponseWriter, r *http.Request) (*models.User, bool) {
 	u, ok := userFromCtx(r.Context())
 	if !ok {
@@ -31,18 +31,6 @@ func requireFamily(w http.ResponseWriter, r *http.Request) (*models.User, bool) 
 		return nil, false
 	}
 	return u, true
-}
-
-func parseDueAt(s string) (*time.Time, error) {
-	if s == "" {
-		return nil, nil
-	}
-	t, err := time.Parse(time.RFC3339, s)
-	if err != nil {
-		return nil, err
-	}
-	u := t.UTC()
-	return &u, nil
 }
 
 func (h *tasksHandler) list(w http.ResponseWriter, r *http.Request) {
@@ -106,7 +94,8 @@ func (h *tasksHandler) create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	// --- push-уведомление ---
+
+	// --- push-уведомление о новой задаче ---
 	msg := "Задача для " + t.Assignee + ": " + t.Title
 	if t.DueAt != nil {
 		msg += "\nСрок: " + t.DueAt.Local().Format("02.01 15:04")
@@ -118,7 +107,7 @@ func (h *tasksHandler) create(w http.ResponseWriter, r *http.Request) {
 		"memo",
 		h.ntfy.TaskClick(t.ID),
 	)
-	// -------------------------
+	// ---------------------------------------
 
 	writeJSON(w, http.StatusCreated, t)
 }
@@ -139,6 +128,16 @@ func (h *tasksHandler) get(w http.ResponseWriter, r *http.Request) {
 func (h *tasksHandler) update(w http.ResponseWriter, r *http.Request) {
 	u, ok := requireFamily(w, r)
 	if !ok {
+		return
+	}
+
+	id := r.PathValue("id")
+
+	// Загружаем текущее состояние — нужно, чтобы понять, действительно ли
+	// статус изменился, и стоит ли кого-то уведомлять.
+	old, err := h.store.Get(r.Context(), u.FamilyID, id)
+	if err != nil {
+		writeStoreError(w, r, err)
 		return
 	}
 
@@ -172,7 +171,6 @@ func (h *tasksHandler) update(w http.ResponseWriter, r *http.Request) {
 		v := strings.TrimSpace(*req.Description)
 		req.Description = &v
 	}
-
 	if req.DueAt != nil && *req.DueAt != "" {
 		if _, err := time.Parse(time.RFC3339, *req.DueAt); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid dueAt (expected RFC3339)")
@@ -180,11 +178,17 @@ func (h *tasksHandler) update(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	t, err := h.store.Update(r.Context(), u.FamilyID, r.PathValue("id"), u.ID, req)
+	t, err := h.store.Update(r.Context(), u.FamilyID, id, u.ID, req)
 	if err != nil {
 		writeStoreError(w, r, err)
 		return
 	}
+
+	// Уведомляем автора, если статус действительно поменялся и менял не он сам.
+	if req.Status != nil && *req.Status != old.Status {
+		h.notifyStatusChange(u, t)
+	}
+
 	writeJSON(w, http.StatusOK, t)
 }
 
@@ -210,6 +214,53 @@ func (h *tasksHandler) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// --- Уведомления ---
+
+// notifyStatusChange отправляет уведомление автору задачи при смене статуса.
+// Если статус менял сам автор — уведомление не отправляется.
+func (h *tasksHandler) notifyStatusChange(actor *models.User, t *models.Task) {
+	if h.ntfy == nil {
+		return
+	}
+	if t.CreatedBy == "" || t.CreatedBy == actor.Name {
+		return
+	}
+
+	var label, tag string
+	switch t.Status {
+	case models.StatusTodo:
+		label, tag = "надо", "memo"
+	case models.StatusInProgress:
+		label, tag = "в работе", "hourglass"
+	case models.StatusDone:
+		label, tag = "выполнено", "white_check_mark"
+	default:
+		return
+	}
+
+	title := fmt.Sprintf("%s: %s", actor.Name, label)
+	body := t.Title
+	if t.DueAt != nil && t.Status != models.StatusDone {
+		body += "\nСрок: " + t.DueAt.Local().Format("02.01 15:04")
+	}
+
+	h.ntfy.Send(title, body, "default", tag, h.ntfy.TaskClick(t.ID))
+}
+
+// --- helpers ---
+
+func parseDueAt(s string) (*time.Time, error) {
+	if s == "" {
+		return nil, nil
+	}
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return nil, err
+	}
+	u := t.UTC()
+	return &u, nil
 }
 
 func writeStoreError(w http.ResponseWriter, r *http.Request, err error) {
