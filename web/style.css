@@ -1229,3 +1229,114 @@ button.attachment-add.is-empty {
 .invite-actions button:active {
   background: #fff;
 }
+
+/* ─── Modal: due date ──────────────────────────── */
+#due-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 22, 26, 0.4);
+  padding: 16px;
+}
+
+#due-modal.open {
+  display: flex;
+}
+
+#due-modal form {
+  width: 100%;
+  max-width: 340px;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 20px;
+  display: grid;
+  gap: 12px;
+}
+
+#due-modal h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+#due-modal .muted.small {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#due-modal input {
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+}
+
+#due-modal input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+#due-modal .modal-actions button {
+  padding: 11px;
+  font: inherit;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#due-modal .modal-actions-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr;
+  gap: 6px;
+}
+
+#due-clear {
+  background: transparent;
+  color: var(--err);
+  border: 1px solid var(--border);
+  font-size: 13px;
+}
+
+#due-cancel {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-size: 13px;
+}
+
+#due-modal button[type="submit"] {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+}
+
+#due-modal button:active {
+  filter: brightness(0.95);
+}
+
+/* Кнопка-карандаш рядом со сроком */
+.due-edit {
+  margin-left: 6px;
+  padding: 0 4px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.due-edit:active {
+  color: var(--accent);
+}

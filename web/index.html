@@ -191,7 +191,19 @@
       </div>
     </div>
   </div>
-
+  <!-- Модалка изменения срока -->
+  <div id="due-modal">
+    <form id="due-form">
+      <h2 id="due-modal-title">Изменить срок</h2>
+      <p id="due-modal-task" class="muted small"></p>
+      <input id="due-input" type="datetime-local">
+      <div class="modal-actions modal-actions-3">
+        <button type="button" id="due-clear">Без срока</button>
+        <button type="button" id="due-cancel">Отмена</button>
+        <button type="submit">Сохранить</button>
+      </div>
+    </form>
+  </div>
   <!-- Палитра цветов -->
   <div id="color-picker" hidden>
     <div id="color-grid"></div>

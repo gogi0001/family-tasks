@@ -12,6 +12,7 @@ const STATUSES = [
   { key: 'done', label: 'Готово' },
 ];
 
+let dueEditTaskId = null;
 // --- Модалка добавления ---
 
 export function openAddModal() {
@@ -28,6 +29,36 @@ export function closeAddModal() {
 
 function isAddModalOpen() {
   return els.addTaskModal.classList.contains('open');
+}
+
+// --- Модалка срока ---
+
+function openDueModal(task) {
+  dueEditTaskId = task.id;
+  els.dueModalTitle.textContent = 'Изменить срок';
+  els.dueModalTask.textContent = task.title;
+
+  // Конвертируем ISO в формат datetime-local (локальное время, без секунд)
+  if (task.dueAt) {
+    const d = new Date(task.dueAt);
+    const pad = n => String(n).padStart(2, '0');
+    els.dueInput.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } else {
+    els.dueInput.value = '';
+  }
+
+  els.dueModal.classList.add('open');
+  setTimeout(() => els.dueInput.focus(), 0);
+}
+
+export function closeDueModal() {
+  els.dueModal.classList.remove('open');
+  dueEditTaskId = null;
+  els.dueInput.value = '';
+}
+
+function isDueModalOpen() {
+  return els.dueModal.classList.contains('open');
 }
 
 // --- Утилиты форматирования ---
@@ -276,16 +307,26 @@ function renderTask(t) {
     dates.appendChild(s);
   }
 
+  const canEditDue = isOwner() || t.createdBy === state.user?.name;
+
+  const dueWrap = document.createElement('span');
   if (t.dueAt) {
-    const due = document.createElement('span');
-    due.textContent = 'Срок ' + fmtDateTime(t.dueAt);
-    if (isOverdue(t)) due.classList.add('overdue');
-    else if (t.status === 'done') due.classList.add('done-muted');
-    dates.appendChild(due);
+    dueWrap.textContent = 'Срок ' + fmtDateTime(t.dueAt);
+    if (isOverdue(t)) dueWrap.classList.add('overdue');
+    else if (t.status === 'done') dueWrap.classList.add('done-muted');
   } else {
-    const noDue = document.createElement('span');
-    noDue.textContent = 'Бессрочно';
-    dates.appendChild(noDue);
+    dueWrap.textContent = 'Бессрочно';
+  }
+  dates.appendChild(dueWrap);
+
+  if (canEditDue) {
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'due-edit';
+    edit.title = 'Изменить срок';
+    edit.textContent = '✎';
+    edit.addEventListener('click', () => openDueModal(t));
+    dates.appendChild(edit);
   }
   card.appendChild(dates);
 
@@ -430,6 +471,28 @@ export function highlightTask(id) {
 // --- Init ---
 
 export function init() {
+  // Модалка срока
+  els.dueCancel.addEventListener('click', closeDueModal);
+  els.dueModal.addEventListener('click', (e) => {
+    if (e.target === els.dueModal) closeDueModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isDueModalOpen()) closeDueModal();
+  });
+
+  els.dueForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!dueEditTaskId) return;
+    const value = els.dueInput.value;
+    const dueAt = value ? new Date(value).toISOString() : '';
+    await applyDueChange(dueEditTaskId, dueAt);
+  });
+
+  els.dueClear.addEventListener('click', async () => {
+    if (!dueEditTaskId) return;
+    await applyDueChange(dueEditTaskId, '');
+  });
+
   els.addTaskFab.addEventListener('click', openAddModal);
   els.addTaskCancel.addEventListener('click', closeAddModal);
 
@@ -529,6 +592,20 @@ async function setStatus(id, status) {
     });
     await load();
   } catch (e) { toast(e.message, 'error'); }
+}
+
+async function applyDueChange(taskId, dueAt) {
+  try {
+    await api(`/tasks/${taskId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ dueAt }),
+    });
+    closeDueModal();
+    await load();
+  } catch (e) {
+    if (e.status === 0) return;
+    toast(e.message, 'error');
+  }
 }
 
 async function removeTask(id) {

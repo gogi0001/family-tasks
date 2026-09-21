@@ -198,10 +198,16 @@ func (h *tasksHandler) update(w http.ResponseWriter, r *http.Request) {
 		v := strings.TrimSpace(*req.Description)
 		req.Description = &v
 	}
-	if req.DueAt != nil && *req.DueAt != "" {
-		if _, err := time.Parse(time.RFC3339, *req.DueAt); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid dueAt (expected RFC3339)")
+	if req.DueAt != nil {
+		if u.Role != models.RoleOwner && old.CreatedBy != u.Name {
+			writeError(w, http.StatusForbidden, "only author or owner can change due date")
 			return
+		}
+		if *req.DueAt != "" {
+			if _, err := time.Parse(time.RFC3339, *req.DueAt); err != nil {
+				writeError(w, http.StatusBadRequest, "invalid dueAt (expected RFC3339)")
+				return
+			}
 		}
 	}
 

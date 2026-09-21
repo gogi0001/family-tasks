@@ -81,6 +81,15 @@ export const els = {
   lightbox: $('lightbox'),
   lightboxImg: $('lightbox-img'),
 
+  // Модалка срока
+  dueModal: $('due-modal'),
+  dueForm: $('due-form'),
+  dueModalTitle: $('due-modal-title'),
+  dueModalTask: $('due-modal-task'),
+  dueInput: $('due-input'),
+  dueClear: $('due-clear'),
+  dueCancel: $('due-cancel'),
+
   toast: $('toast'),
 };
 

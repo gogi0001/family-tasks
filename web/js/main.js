@@ -19,6 +19,7 @@ checkDom();
 on('unauthenticated', () => {
   log('event: unauthenticated — reset');
   tasks.closeAddModal();
+  tasks.closeDueModal();          // ← новое
   family.closeFamilyModal();
   attachments.closeLightbox();
   sse.stop();
@@ -34,6 +35,7 @@ on('unauthenticated', () => {
 on('logged-out', () => {
   log('event: logged-out');
   tasks.closeAddModal();
+  tasks.closeDueModal();          // ← новое
   family.closeFamilyModal();
   attachments.closeLightbox();
   sse.stop();
