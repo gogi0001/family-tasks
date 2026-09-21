@@ -3,9 +3,10 @@ import { state } from './state.js';
 import { api } from './api.js';
 import { toast } from './toast.js';
 import { emit } from './events.js';
+import * as invites from './invites.js';
 
 export async function enterFamilyFlow() {
-  if (!state.user) { emit('unauthorized'); return; }
+  if (!state.user) { emit('unauthenticated'); return; }
   try {
     state.family = await api('/families/me');
   } catch (e) {
@@ -23,8 +24,6 @@ export async function enterFamilyFlow() {
   emit('family-updated');
 }
 
-// --- Роль ---
-
 export function myRole() {
   const me = state.family?.members.find(m => m.id === state.user?.id);
   return me?.role || '';
@@ -40,6 +39,7 @@ function openFamilyModal() {
   if (!state.family) return;
   els.familyModal.classList.add('open');
   renderFamilyModal();
+  invites.loadInvites();
 }
 
 export function closeFamilyModal() {
@@ -85,12 +85,12 @@ function renderFamilyModal() {
   }
 }
 
-// --- Рендер основного экрана (только то, что теперь нужно) ---
+// --- Рендер главного экрана ---
 
 export function renderFamily() {
   const has = !!state.family;
 
-  els.familyGate.hidden = has;      // ← вот тут был баг
+  els.familyGate.hidden = has;
   els.tasksArea.hidden = !has;
   els.addTaskFab.hidden = !has;
   els.familyOpen.hidden = !has;
@@ -155,7 +155,6 @@ async function regenerateCode() {
 // --- Init ---
 
 export function init() {
-  // Открытие/закрытие модалки семьи
   els.familyOpen.addEventListener('click', openFamilyModal);
   els.familyModalClose.addEventListener('click', closeFamilyModal);
   els.familyModalCloseBtn.addEventListener('click', closeFamilyModal);
@@ -166,13 +165,11 @@ export function init() {
     if (e.key === 'Escape' && isFamilyModalOpen()) closeFamilyModal();
   });
 
-  // Кнопка перевыпуска кода
   els.familyModalRegen.addEventListener('click', regenerateCode);
 
-  // Формы создания/входа
   els.createForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!state.user) { emit('unauthorized'); return; }
+    if (!state.user) { emit('unauthenticated'); return; }
     const name = els.createInput.value.trim();
     if (!name) return;
     try {
@@ -190,13 +187,13 @@ export function init() {
 
   els.joinForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!state.user) { emit('unauthorized'); return; }
-    const code = els.joinInput.value.trim();
-    if (!code) return;
+    if (!state.user) { emit('unauthenticated'); return; }
+    const invite = els.joinInput.value.trim();
+    if (!invite) return;
     try {
       state.family = await api('/families/join', {
         method: 'POST',
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ invite }),
       });
       els.joinInput.value = '';
       emit('family-updated');

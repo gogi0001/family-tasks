@@ -11,7 +11,7 @@ const PALETTE = [
 
 export function renderUser() {
   if (state.user) {
-    const color  = state.user.color || '#90a4ae';
+    const color = state.user.color || '#90a4ae';
     const letter = (state.user.name || '?').trim().charAt(0).toUpperCase();
     els.avatar.style.background = color;
     els.avatarLetter.textContent = letter;
@@ -24,15 +24,6 @@ export function renderUser() {
     els.whoLogout.hidden = true;
     els.colorPicker.hidden = true;
   }
-}
-
-export function showNameModal() {
-  els.modal.classList.add('open');
-  setTimeout(() => els.nameInput.focus(), 0);
-}
-
-export function hideNameModal() {
-  els.modal.classList.remove('open');
 }
 
 function renderColorPicker() {
@@ -61,30 +52,6 @@ async function setColor(color) {
 }
 
 export function init() {
-  els.nameForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = els.nameInput.value.trim();
-    if (!name) return;
-    try {
-      state.user = await api('/me', {
-        method: 'POST',
-        body: JSON.stringify({ name }),
-      });
-      hideNameModal();
-      els.nameInput.value = '';
-      renderUser();
-      emit('identified');
-    } catch (e) {
-      toast(e.message, 'error');
-    }
-  });
-
-  els.whoLogout.addEventListener('click', async () => {
-    try { await api('/me', { method: 'DELETE' }); } catch { /* ignore */ }
-    state.user = null;
-    emit('logged-out');
-  });
-
   els.avatar.addEventListener('click', (e) => {
     e.stopPropagation();
     if (!state.user) return;

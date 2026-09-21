@@ -4,20 +4,23 @@ import { api } from './api.js';
 import { on } from './events.js';
 import { toast } from './toast.js';
 import * as user from './user.js';
+import * as auth from './auth.js';
 import * as family from './family.js';
 import * as tasks from './tasks.js';
+import * as invites from './invites.js';
 import * as connection from './connection.js';
-import * as sse from './sse.js';
 import * as attachments from './attachments.js';
+import * as sse from './sse.js';
 
 checkDom();
 
-// --- Реакции на события ---
+// --- События ---
 
-on('unauthorized', () => {
-  log('event: unauthorized — reset');
+on('unauthenticated', () => {
+  log('event: unauthenticated — reset');
   tasks.closeAddModal();
   family.closeFamilyModal();
+  attachments.closeLightbox();
   sse.stop();
   state.user = null;
   state.family = null;
@@ -25,24 +28,26 @@ on('unauthorized', () => {
   user.renderUser();
   family.renderFamily();
   tasks.render();
-  user.showNameModal();
+  auth.openAuthModal();
 });
 
 on('logged-out', () => {
   log('event: logged-out');
   tasks.closeAddModal();
   family.closeFamilyModal();
+  attachments.closeLightbox();
   sse.stop();
   state.family = null;
   state.tasks = [];
   user.renderUser();
   family.renderFamily();
   tasks.render();
-  user.showNameModal();
+  auth.openAuthModal();
 });
 
 on('identified', async () => {
   log('event: identified');
+  user.renderUser();
   await family.enterFamilyFlow();
   sse.start();
   startRefreshFallback();
@@ -62,6 +67,11 @@ on('user-updated', () => {
   tasks.render();
 });
 
+on('attachments-changed', () => {
+  log('event: attachments-changed');
+  tasks.load();
+});
+
 on('connection-changed', async (online) => {
   log('event: connection-changed →', online ? 'online' : 'offline');
   state.online = online;
@@ -76,32 +86,26 @@ on('connection-changed', async (online) => {
     await family.enterFamilyFlow();
     sse.start();
   } catch (e) {
-    if (e.status === 401) user.showNameModal();
+    if (e.status === 401) auth.openAuthModal('login');
   }
 });
-
-// --- SSE ---
 
 on('sse-event', () => {
   tasks.load();
 });
 
 on('sse-open', () => {
-  // Догоняем всё, что изменилось, пока не было соединения.
-  tasks.load();
-});
-
-on('attachments-changed', () => {
-  log('event: attachments-changed');
   tasks.load();
 });
 
 // --- Init ---
 
 user.init();
+auth.init();
 family.init();
 tasks.init();
-attachments.init();      // ← новое
+invites.init();
+attachments.init();
 connection.renderConnection();
 
 // --- Boot ---
@@ -114,16 +118,13 @@ async function boot() {
     sse.start();
     startRefreshFallback();
   } catch (e) {
-    if (e.status === 401) user.showNameModal();
+    if (e.status === 401) auth.openAuthModal();
     else if (e.status === 0) { /* offline */ }
     else console.error('[app] boot failed', e);
   }
 }
 
 // --- Refresh fallback ---
-// SSE даёт мгновенные обновления. Раз в 60 секунд обновляемся на всякий
-// случай, плюс при возврате во вкладку/окно. Если SSE не работает —
-// данные всё равно будут свежими.
 
 let refreshTimer = null;
 let lastRefreshAt = 0;

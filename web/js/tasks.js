@@ -455,7 +455,7 @@ export function init() {
 
   els.form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!state.user) { emit('unauthorized'); return; }
+    if (!state.user) { emit('unauthenticated'); return; }
     if (!state.family) { toast('Сначала создайте семью', 'error'); return; }
 
     const title = els.title.value.trim();

@@ -15,10 +15,19 @@ export const els = {
   colorPicker: $('color-picker'),
   colorGrid: $('color-grid'),
 
-  // Идентификация
-  modal: $('name-modal'),
-  nameForm: $('name-form'),
-  nameInput: $('name-input'),
+  // Auth
+  authModal: $('auth-modal'),
+  authTabLogin: $('auth-tab-login'),
+  authTabRegister: $('auth-tab-register'),
+  authLoginForm: $('auth-login-form'),
+  authRegForm: $('auth-register-form'),
+  loginEmail: $('login-email'),
+  loginPassword: $('login-password'),
+  registerEmail: $('register-email'),
+  registerName: $('register-name'),
+  registerPassword: $('register-password'),
+  registerInvite: $('register-invite'),
+  inviteHint: $('invite-hint'),
 
   // Семья
   familyOpen: $('family-open'),
@@ -36,7 +45,11 @@ export const els = {
   familyModalClose: $('family-modal-close'),
   familyModalCloseBtn: $('family-modal-close-btn'),
 
-  // Задачи и тулбар
+  invitesSection: $('invites-section'),
+  invitesList: $('invites-list'),
+  inviteCreate: $('invite-create'),
+
+  // Задачи
   tasksArea: $('tasks-area'),
   tasks: $('tasks'),
   empty: $('empty'),
@@ -53,7 +66,7 @@ export const els = {
   filterTo: $('filter-created-to'),
   filterReset: $('filter-reset'),
 
-  // Модалка добавления
+  // Модалка задачи
   addTaskFab: $('add-task-fab'),
   addTaskModal: $('add-task-modal'),
   addTaskCancel: $('add-task-cancel'),
@@ -62,9 +75,12 @@ export const els = {
   assignee: $('assignee'),
   due: $('due'),
   description: $('description'),
+
+  // Вложения
   uploadInput: $('upload-input'),
   lightbox: $('lightbox'),
   lightboxImg: $('lightbox-img'),
+
   toast: $('toast'),
 };
 

@@ -24,11 +24,11 @@
       <button id="family-open" type="button" title="Управление семьёй" hidden>
         <span class="family-open-icon">👥</span>
       </button>
-      <button id="who-avatar" type="button" title="Сменить цвет">
+      <button id="who-avatar" type="button" title="Сменить цвет" hidden>
         <span id="who-avatar-letter"></span>
       </button>
       <span id="who-name"></span>
-      <button id="who-logout" type="button" hidden title="Сменить имя">×</button>
+      <button id="who-logout" type="button" hidden title="Выйти">×</button>
     </div>
   </header>
 
@@ -42,9 +42,13 @@
         </form>
       </div>
       <div class="card">
-        <h2>Присоединиться</h2>
+        <h2>Присоединиться по инвайту</h2>
+        <p class="muted small">
+          Примите ссылку-приглашение от владельца семьи
+          или введите код вручную.
+        </p>
         <form id="family-join-form">
-          <input id="family-code-input" placeholder="Код приглашения" maxlength="16" required>
+          <input id="family-code-input" placeholder="Код инвайта" maxlength="64" required>
           <button type="submit">Войти</button>
         </form>
       </div>
@@ -109,6 +113,7 @@
 
   <button id="add-task-fab" type="button" title="Добавить задачу" hidden>+</button>
 
+  <!-- Модалка добавления задачи -->
   <div id="add-task-modal">
     <form id="add-form">
       <h2>Новая задача</h2>
@@ -126,12 +131,33 @@
     </form>
   </div>
 
-  <div id="name-modal">
-    <form id="name-form">
-      <h2>Как тебя зовут?</h2>
-      <input id="name-input" placeholder="Имя" maxlength="60" autocomplete="name" required>
-      <button type="submit">Продолжить</button>
-    </form>
+  <!-- Модалка входа / регистрации -->
+  <div id="auth-modal">
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button type="button" id="auth-tab-login" class="active">Вход</button>
+        <button type="button" id="auth-tab-register">Регистрация</button>
+      </div>
+
+      <form id="auth-login-form">
+        <input id="login-email" type="email" placeholder="Email" required autocomplete="email">
+        <input id="login-password" type="password" placeholder="Пароль" required autocomplete="current-password">
+        <button type="submit">Войти</button>
+      </form>
+
+      <form id="auth-register-form" hidden>
+        <input id="register-email" type="email" placeholder="Email" required autocomplete="email">
+        <input id="register-name" placeholder="Имя" required maxlength="60" autocomplete="name">
+        <input id="register-password" type="password" placeholder="Пароль (минимум 8 символов)" required minlength="8"
+          autocomplete="new-password">
+        <label class="field">
+          <span class="field-label">Инвайт (если пришли в семью)</span>
+          <input id="register-invite" placeholder="Код инвайта" maxlength="64">
+        </label>
+        <p id="invite-hint" class="muted small" hidden></p>
+        <button type="submit">Создать аккаунт</button>
+      </form>
+    </div>
   </div>
 
   <!-- Модалка управления семьёй -->
@@ -151,24 +177,36 @@
       <div class="family-modal-members-label">Участники</div>
       <div id="family-modal-members" class="task-meta"></div>
 
+      <!-- Инвайты (только для owner) -->
+      <div id="invites-section" hidden>
+        <div class="family-modal-members-label">
+          <span>Приглашения</span>
+          <button type="button" id="invite-create" title="Создать новую ссылку">+ Создать</button>
+        </div>
+        <div id="invites-list" class="invites-list"></div>
+      </div>
+
       <div class="modal-actions">
         <button type="button" id="family-modal-close-btn">Закрыть</button>
       </div>
     </div>
   </div>
 
+  <!-- Палитра цветов -->
   <div id="color-picker" hidden>
     <div id="color-grid"></div>
   </div>
 
-  <div id="toast" hidden></div>
   <!-- Скрытый input для загрузки вложений -->
   <input type="file" id="upload-input" accept="image/*" multiple hidden>
 
-  <!-- Лайтбокс для просмотра картинки во весь экран -->
+  <!-- Лайтбокс -->
   <div id="lightbox" hidden>
     <img id="lightbox-img" alt="">
   </div>
+
+  <div id="toast" hidden></div>
+
   <script type="module" src="/js/main.js"></script>
 </body>
 

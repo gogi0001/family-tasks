@@ -1027,3 +1027,199 @@ button.attachment-add.is-empty {
   border-radius: 999px;
   border-style: solid;
 }
+
+/* ─── Auth modal ───────────────────────────────── */
+#auth-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 22, 26, 0.4);
+  padding: 16px;
+}
+
+#auth-modal.open {
+  display: flex;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 2px;
+  background: var(--bg);
+  border-radius: 8px;
+}
+
+.auth-tabs button {
+  padding: 8px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.auth-tabs button.active {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+#auth-modal form {
+  display: grid;
+  gap: 10px;
+}
+
+#auth-modal input {
+  padding: 10px 12px;
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+}
+
+#auth-modal input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+#auth-modal button[type="submit"] {
+  padding: 12px;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#auth-modal .field {
+  display: grid;
+  gap: 4px;
+}
+
+#auth-modal .field-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.muted.small {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.muted.small.error {
+  color: var(--err);
+}
+
+#invite-hint {
+  margin: 0;
+}
+
+/* ─── Invites (в модалке семьи) ────────────────── */
+#invites-section {
+  display: grid;
+  gap: 8px;
+}
+
+#invites-section .family-modal-members-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#invite-create {
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#invite-create:active {
+  background: var(--bg);
+}
+
+.invites-list {
+  display: grid;
+  gap: 6px;
+}
+
+.invite-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--bg);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.invite-link {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.invite-link b {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.invite-status {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--card);
+}
+
+.invite-status.ok {
+  color: var(--ok);
+}
+
+.invite-status.muted {
+  color: var(--muted);
+}
+
+.invite-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.invite-actions button {
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.invite-actions button:active {
+  background: #fff;
+}

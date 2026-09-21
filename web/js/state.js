@@ -34,7 +34,7 @@ function loadFilter() {
 function saveFilter() {
   try {
     localStorage.setItem(FILTER_KEY, JSON.stringify(state.filter));
-  } catch { /* quota/private mode — не критично */ }
+  } catch { }
 }
 
 function loadSort() {
@@ -76,7 +76,6 @@ export function setSort(v) {
   saveSort();
 }
 
-// isFilterDefault — true, если подробный фильтр не задан.
 export function isAdvancedDefault() {
   const f = state.filter;
   return (
