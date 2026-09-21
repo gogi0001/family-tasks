@@ -56,7 +56,12 @@ func NewRouter(cfg Config) http.Handler {
 	// --- статика ---
 	if cfg.WebDir != "" {
 		fs := http.FileServer(http.Dir(cfg.WebDir))
+
+		mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		})
 		mux.Handle("GET /", fs)
+
 		slog.Info("static mounted", "dir", cfg.WebDir)
 	} else {
 		slog.Warn("static disabled: WebDir is empty")
