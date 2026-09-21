@@ -77,6 +77,15 @@ export const els = {
   dueField: $('due-field'),
   description: $('description'),
 
+  // Модалка срока
+  dueModal: $('due-modal'),
+  dueForm: $('due-form'),
+  dueModalTitle: $('due-modal-title'),
+  dueModalTask: $('due-modal-task'),
+  dueInput: $('due-input'),
+  dueClear: $('due-clear'),
+  dueCancel: $('due-cancel'),
+
   // Повторяющиеся
   taskRecurring: $('task-recurring'),
   recurringFields: $('recurring-fields'),
