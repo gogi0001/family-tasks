@@ -210,7 +210,8 @@
 
       <form id="auth-login-form">
         <input id="login-email" type="email" placeholder="Email" required autocomplete="email">
-        <input id="login-password" type="password" placeholder="Пароль" required autocomplete="current-password">
+        <input id="login-password" type="password" placeholder="Пароль" required inputmode="text"
+          autocomplete="current-password" autocorrect="off" autocapitalize="off" spellcheck="false">
         <button type="submit">Войти</button>
       </form>
 
@@ -218,8 +219,8 @@
         <input id="register-email" type="email" placeholder="Email" required autocomplete="email">
         <input id="register-name" placeholder="Имя" required maxlength="60" autocomplete="name">
         <input id="register-password" type="password" placeholder="Пароль (минимум 8 символов)" required minlength="8"
-          autocomplete="new-password">
-        <label class="field">
+          inputmode="text" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false"> <label
+          class="field">
           <span class="field-label">Инвайт (если пришли в семью)</span>
           <input id="register-invite" placeholder="Код инвайта" maxlength="64">
         </label>
