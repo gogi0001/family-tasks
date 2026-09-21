@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -16,7 +17,6 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.material.appbar.MaterialToolbar
 
 class MainActivity : AppCompatActivity() {
 
@@ -26,7 +26,6 @@ class MainActivity : AppCompatActivity() {
     // URL, с которого сейчас загружена страница (без завершающего слэша).
     private var loadedBase: String = ""
 
-    // Лончер настроек: получаем результат — новый URL.
     private val settingsLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -44,8 +43,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
 
         webView = findViewById(R.id.webview)
         progress = findViewById(R.id.progress)
@@ -70,10 +67,8 @@ class MainActivity : AppCompatActivity() {
             ): Boolean {
                 val url = request.url.toString()
 
-                // Если базы ещё нет — не навигируем никуда, пока не загрузимся.
                 if (loadedBase.isEmpty()) return false
 
-                // Всё, что вне текущего сервера, — во внешний браузер.
                 if (!url.startsWith("$loadedBase/") && url != loadedBase) {
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                     return true
@@ -88,31 +83,52 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Первый запуск — берём из prefs, если пусто, уходим в настройки.
+        // Первый запуск — берём URL из prefs или уходим в настройки.
         val initial = serverUrlFromPrefs()
         if (initial.isEmpty()) {
             openSettings()
         } else {
             loadUrl(initial)
         }
+
+        // Если приложение стартовало из уведомления — обработаем intent.
+        handleDeepLink(intent)
+    }
+
+    // singleTask + deep link: повторный тап по уведомлению приходит сюда.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleDeepLink(intent)
+    }
+
+    // Разбор familytasks://... из уведомления.
+    private fun handleDeepLink(intent: Intent?) {
+        val data = intent?.data ?: return
+        if (data.scheme != "familytasks") return
+
+        Log.d("FamilyTasks", "deep link: $data")
+
+        // Приложение уже открыто — достаточно перезагрузить WebView,
+        // чтобы увидеть свежие данные. Параметр task (если появится
+        // в будущем) можно использовать для открытия конкретной задачи.
+        if (loadedBase.isNotEmpty()) {
+            webView.reload()
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        // Страховка: если что-то изменилось в prefs вне Activity Result
-        // (например, из другого источника), перезагрузим.
         val fromPrefs = serverUrlFromPrefs()
         if (fromPrefs.isNotEmpty() && fromPrefs != loadedBase) {
             loadUrl(fromPrefs)
-        } else if (loadedBase.isEmpty()) {
-            // Ничего не загружено и настроек нет — в настройки.
-            if (fromPrefs.isEmpty()) openSettings()
+        } else if (loadedBase.isEmpty() && fromPrefs.isEmpty()) {
+            openSettings()
         }
     }
 
     override fun onPause() {
         super.onPause()
-        // Сохраним cookie на диск — важно при быстром переключении URL.
         CookieManager.getInstance().flush()
     }
 
