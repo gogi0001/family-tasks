@@ -75,24 +75,26 @@ func main() {
 		"addr", cfg.Addr,
 		"web_dir", webDir,
 		"db_path", cfg.DBPath,
+		"uploads_dir", cfg.UploadsDir,
+		"max_upload_mb", cfg.MaxUploadMB,
 		"ntfy_enabled", cfg.NtfyEnabled(),
 		"ntfy_url", cfg.NtfyURL,
 		"ntfy_topic", cfg.NtfyTopic,
 		"ntfy_click", cfg.NtfyClick,
-		"uploads_dir", cfg.UploadsDir,
 	)
 
 	srv := &http.Server{
 		Addr: cfg.Addr,
 		Handler: api.NewRouter(api.Config{
-			WebDir:   webDir,
-			Tasks:    store,
-			Users:    store,
-			Families: store,
-			Atts:     atts,
-			Files:    files,
-			Ntfy:     ntfyClient,
-			Events:   hub,
+			WebDir:         webDir,
+			Tasks:          store,
+			Users:          store,
+			Families:       store,
+			Atts:           atts,
+			Files:          files,
+			MaxUploadBytes: cfg.MaxUploadBytes(), // ← новое
+			Ntfy:           ntfyClient,
+			Events:         hub,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 	}

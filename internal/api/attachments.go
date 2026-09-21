@@ -20,10 +20,10 @@ import (
 	"github.com/gogi0001/family-tasks/internal/storage"
 )
 
-const (
-	maxUploadBytes  = 10 << 20 // 10 MB
-	maxRequestBytes = maxUploadBytes + (1 << 20)
-)
+// maxFormMemory — сколько байт multipart-формы держать в памяти.
+// Всё, что больше, Go сохраняет во временный файл на диске.
+// Это НЕ лимит размера файла; лимит задаётся через MaxBytesReader.
+const maxFormMemory = 5 << 20 // 5 MB
 
 var (
 	errUnsupportedMime = errors.New("unsupported mime")
@@ -36,10 +36,11 @@ var (
 )
 
 type attachmentsHandler struct {
-	tasks  storage.TaskStore
-	atts   storage.AttachmentStore
-	files  *storage.FileStorage
-	events *events.Hub
+	tasks    storage.TaskStore
+	atts     storage.AttachmentStore
+	files    *storage.FileStorage
+	events   *events.Hub
+	maxBytes int64 // лимит размера одного файла
 }
 
 func attachmentURL(taskID, attID string) string {
@@ -58,9 +59,17 @@ func (h *attachmentsHandler) upload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBytes)
-	if err := r.ParseMultipartForm(maxUploadBytes); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid multipart form or file too large")
+	// MaxBytesReader возвращает 413 Payload Too Large при превышении.
+	// Небольшой запас (+1 МБ) — на multipart-обвязку (boundary, заголовки полей).
+	r.Body = http.MaxBytesReader(w, r.Body, h.maxBytes+(1<<20))
+
+	if err := r.ParseMultipartForm(maxFormMemory); err != nil {
+		if strings.Contains(err.Error(), "request body too large") {
+			writeError(w, http.StatusRequestEntityTooLarge,
+				fmt.Sprintf("file too large (max %d MB)", h.maxBytes>>20))
+			return
+		}
+		writeError(w, http.StatusBadRequest, "invalid multipart form")
 		return
 	}
 	defer func() {

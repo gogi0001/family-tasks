@@ -12,14 +12,15 @@ import (
 )
 
 type Config struct {
-	WebDir   string
-	Tasks    storage.TaskStore
-	Users    storage.UserStore
-	Families storage.FamilyStore
-	Atts     storage.AttachmentStore
-	Files    *storage.FileStorage
-	Ntfy     *notify.Client
-	Events   *events.Hub
+	WebDir         string
+	Tasks          storage.TaskStore
+	Users          storage.UserStore
+	Families       storage.FamilyStore
+	Atts           storage.AttachmentStore
+	Files          *storage.FileStorage
+	MaxUploadBytes int64
+	Ntfy           *notify.Client
+	Events         *events.Hub
 }
 
 func NewRouter(cfg Config) http.Handler {
@@ -35,10 +36,11 @@ func NewRouter(cfg Config) http.Handler {
 	mh := &meHandler{users: cfg.Users}
 	fh := &familyHandler{families: cfg.Families, users: cfg.Users, events: cfg.Events}
 	ah := &attachmentsHandler{
-		tasks:  cfg.Tasks,
-		atts:   cfg.Atts,
-		files:  cfg.Files,
-		events: cfg.Events,
+		tasks:    cfg.Tasks,
+		atts:     cfg.Atts,
+		files:    cfg.Files,
+		events:   cfg.Events,
+		maxBytes: cfg.MaxUploadBytes, // ← новое
 	}
 	sh := &sseHandler{hub: cfg.Events}
 
