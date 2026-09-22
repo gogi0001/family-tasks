@@ -6,11 +6,13 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gogi0001/family-tasks/internal/email"
 	"github.com/gogi0001/family-tasks/internal/events"
 	"github.com/gogi0001/family-tasks/internal/notify"
 	"github.com/gogi0001/family-tasks/internal/storage"
 )
 
+// Config — конфигурация для API.
 type Config struct {
 	WebDir         string
 	Tasks          storage.TaskStore
@@ -24,8 +26,12 @@ type Config struct {
 	Ntfy           *notify.Client
 	Events         *events.Hub
 	Templates      storage.TemplateStore
+	Resets         storage.PasswordResetStore
+	Mailer         *email.Sender
+	AppURL         string
 }
 
+// NewRouter — конструктор для API.
 func NewRouter(cfg Config) http.Handler {
 	mux := http.NewServeMux()
 
@@ -33,7 +39,15 @@ func NewRouter(cfg Config) http.Handler {
 	mh := &meHandler{users: cfg.Users}
 	fh := &familyHandler{families: cfg.Families, users: cfg.Users, invites: cfg.Invites, events: cfg.Events}
 	ah := &attachmentsHandler{tasks: cfg.Tasks, atts: cfg.Atts, files: cfg.Files, events: cfg.Events, maxBytes: cfg.MaxUploadBytes}
-	authh := &authHandler{users: cfg.Users, sessions: cfg.Sessions, invites: cfg.Invites, families: cfg.Families}
+	authh := &authHandler{
+		users:    cfg.Users,
+		sessions: cfg.Sessions,
+		invites:  cfg.Invites,
+		families: cfg.Families,
+		resets:   cfg.Resets,
+		mailer:   cfg.Mailer,
+		appURL:   cfg.AppURL,
+	}
 	ih := &invitesHandler{invites: cfg.Invites, families: cfg.Families}
 	sh := &sseHandler{hub: cfg.Events}
 	tmplh := &templatesHandler{templates: cfg.Templates, events: cfg.Events}
@@ -44,6 +58,9 @@ func NewRouter(cfg Config) http.Handler {
 	mux.HandleFunc("POST /api/v1/auth/register", authh.register)
 	mux.HandleFunc("POST /api/v1/auth/login", authh.login)
 	mux.HandleFunc("POST /api/v1/auth/logout", authh.logout)
+	mux.HandleFunc("POST /api/v1/auth/change-password", authh.changePassword)
+	mux.HandleFunc("POST /api/v1/auth/forgot", authh.forgotPassword)
+	mux.HandleFunc("POST /api/v1/auth/reset", authh.resetPassword)
 
 	// --- me ---
 	mux.HandleFunc("GET /api/v1/me", mh.get)

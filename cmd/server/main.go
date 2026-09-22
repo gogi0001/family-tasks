@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"flag"
 	"fmt"
@@ -13,8 +15,11 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/gogi0001/family-tasks/internal/api"
 	"github.com/gogi0001/family-tasks/internal/config"
+	"github.com/gogi0001/family-tasks/internal/email"
 	"github.com/gogi0001/family-tasks/internal/events"
 	"github.com/gogi0001/family-tasks/internal/notify"
 	"github.com/gogi0001/family-tasks/internal/reminder"
@@ -34,20 +39,25 @@ func main() {
 
 	setupLogger(cfg)
 
-	// --- web/ ---
+	// --- CLI-режим: сброс пароля вручную ---
+	// Если задан флаг -reset-password <email>, сервер ничего не запускает,
+	// а сразу сбрасывает пароль пользователю и выходит.
+	if cfg.ResetPassword != "" {
+		runPasswordResetCLI(cfg)
+		return
+	}
+
 	webDir, err := resolveWebDir(cfg.WebDir)
 	if err != nil {
 		slog.Error("cannot locate web dir", "err", err, "web_dir_flag", cfg.WebDir)
 		os.Exit(1)
 	}
 
-	// --- каталог БД ---
 	if err := os.MkdirAll(filepath.Dir(cfg.DBPath), 0o755); err != nil {
 		slog.Error("create db dir", "err", err, "path", cfg.DBPath)
 		os.Exit(1)
 	}
 
-	// --- хранилище ---
 	store, err := storage.OpenSQLite(cfg.DBPath)
 	if err != nil {
 		slog.Error("open store", "err", err, "path", cfg.DBPath)
@@ -59,7 +69,6 @@ func main() {
 		}
 	}()
 
-	// --- файловое хранилище и репозитории ---
 	files, err := storage.NewFileStorage(cfg.UploadsDir)
 	if err != nil {
 		slog.Error("open file storage", "err", err, "path", cfg.UploadsDir)
@@ -70,15 +79,28 @@ func main() {
 	sessions := storage.NewSessionsRepo(store)
 	invites := storage.NewInvitesRepo(store)
 	atts := storage.NewAttachmentRepo(store)
+	templates := storage.NewTemplatesRepo(store)
+	resets := storage.NewResetsRepo(store)
 
-	// --- ntfy + hub ---
+	mailer := email.New(email.Config{
+		Host:     cfg.SMTPHost,
+		Port:     cfg.SMTPPort,
+		User:     cfg.SMTPUser,
+		Password: cfg.SMTPPass,
+		From:     cfg.SMTPFrom,
+	})
+
 	ntfyClient := notify.NewClient(cfg.NtfyURL, cfg.NtfyTopic, cfg.NtfyClick)
 	hub := events.NewHub()
 
-	// --- reminder config ---
 	reminderInterval, reminderWindow, err := cfg.ReminderDurations()
 	if err != nil {
 		slog.Error("invalid reminder config", "err", err)
+		os.Exit(1)
+	}
+	schedulerInterval, err := cfg.SchedulerDuration()
+	if err != nil {
+		slog.Error("invalid scheduler config", "err", err)
 		os.Exit(1)
 	}
 
@@ -89,31 +111,20 @@ func main() {
 		"uploads_dir", cfg.UploadsDir,
 		"max_upload_mb", cfg.MaxUploadMB,
 		"ntfy_enabled", cfg.NtfyEnabled(),
-		"ntfy_url", cfg.NtfyURL,
-		"ntfy_topic", cfg.NtfyTopic,
-		"ntfy_click", cfg.NtfyClick,
+		"email_enabled", cfg.EmailEnabled(),
+		"app_url", cfg.AppURL,
 	)
 
-	// --- ctx и обработчики сигналов ---
-	// ВАЖНО: ctx создаётся ДО горутин, которые его используют.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	templates := storage.NewTemplatesRepo(store)
-
-	schedulerInterval, err := cfg.SchedulerDuration()
-	if err != nil {
-		slog.Error("invalid scheduler config", "err", err)
-		os.Exit(1)
-	}
-	taskScheduler := scheduler.New(templates, store, hub, schedulerInterval)
-	go taskScheduler.Run(ctx)
-
-	// --- раннер напоминаний ---
 	reminderRunner := reminder.New(store, ntfyClient, reminderInterval, reminderWindow)
 	go reminderRunner.Run(ctx)
 
-	// --- периодическая чистка протухших сессий ---
+	taskScheduler := scheduler.New(templates, store, hub, schedulerInterval)
+	go taskScheduler.Run(ctx)
+
+	// Чистка протухших сессий и reset-токенов — раз в час.
 	go func() {
 		t := time.NewTicker(1 * time.Hour)
 		defer t.Stop()
@@ -125,11 +136,13 @@ func main() {
 				if err := sessions.DeleteExpiredSessions(ctx); err != nil {
 					slog.Warn("cleanup sessions", "err", err)
 				}
+				if err := resets.DeleteExpired(ctx); err != nil {
+					slog.Warn("cleanup resets", "err", err)
+				}
 			}
 		}
 	}()
 
-	// --- HTTP-сервер ---
 	srv := &http.Server{
 		Addr: cfg.Addr,
 		Handler: api.NewRouter(api.Config{
@@ -141,16 +154,17 @@ func main() {
 			Files:          files,
 			Sessions:       sessions,
 			Invites:        invites,
+			Templates:      templates,
+			Resets:         resets,
+			Mailer:         mailer,
+			AppURL:         cfg.AppURL,
 			MaxUploadBytes: cfg.MaxUploadBytes(),
 			Ntfy:           ntfyClient,
 			Events:         hub,
-			Templates:      templates,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
-		// WriteTimeout не ставим — иначе SSE оборвётся.
 	}
 
-	// --- graceful shutdown ---
 	go func() {
 		<-ctx.Done()
 		slog.Info("shutdown signal received")
@@ -168,7 +182,73 @@ func main() {
 	slog.Info("stopped")
 }
 
-// --- helpers ---
+// --- CLI: сброс пароля вручную ---
+
+func runPasswordResetCLI(cfg *config.Config) {
+	// Тихо открываем БД, ничего не запускаем.
+	store, err := storage.OpenSQLite(cfg.DBPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "open db:", err)
+		os.Exit(1)
+	}
+	defer store.Close()
+
+	users := storage.NewUsersRepo(store)
+
+	u, _, err := users.GetUserByEmail(context.Background(), cfg.ResetPassword)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "user not found:", err)
+		os.Exit(1)
+	}
+
+	pwd := cfg.ResetPasswordValue
+	generated := false
+	if pwd == "" {
+		pwd = generatePassword(16)
+		generated = true
+	}
+	if len(pwd) < 8 {
+		fmt.Fprintln(os.Stderr, "password must be at least 8 characters")
+		os.Exit(2)
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(pwd), bcrypt.DefaultCost)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "hash:", err)
+		os.Exit(1)
+	}
+	if err := users.UpdatePassword(context.Background(), u.ID, string(hash)); err != nil {
+		fmt.Fprintln(os.Stderr, "update:", err)
+		os.Exit(1)
+	}
+
+	// Убиваем все сессии пользователя.
+	sessions := storage.NewSessionsRepo(store)
+	_ = sessions.DeleteAllUserSessions(context.Background(), u.ID)
+
+	fmt.Printf("OK: password updated for %s\n", u.Email)
+	if generated {
+		fmt.Printf("New password: %s\n", pwd)
+	} else {
+		fmt.Println("New password: (как задано в -new-password)")
+	}
+}
+
+func generatePassword(n int) string {
+	// Алфавит без похожих символов.
+	const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
+		// Крайне маловероятно; возвращаем что-то осмысленное.
+		return base64.RawURLEncoding.EncodeToString([]byte(time.Now().String()))[:n]
+	}
+	for i := range buf {
+		buf[i] = alphabet[int(buf[i])%len(alphabet)]
+	}
+	return string(buf)
+}
+
+// --- helpers (без изменений) ---
 
 func setupLogger(cfg *config.Config) {
 	opts := &slog.HandlerOptions{Level: cfg.SlogLevel()}

@@ -17,6 +17,7 @@ var (
 	ErrInviteExpired = errors.New("invite expired")
 )
 
+// TaskStore представляет хранилище задач.
 type TaskStore interface {
 	List(ctx context.Context, familyID string) ([]*models.Task, error)
 	Get(ctx context.Context, familyID, id string) (*models.Task, error)
@@ -25,6 +26,7 @@ type TaskStore interface {
 	Delete(ctx context.Context, familyID, id string) error
 }
 
+// UserStore представляет хранилище пользователей.
 type UserStore interface {
 	GetUser(ctx context.Context, id string) (*models.User, error)
 
@@ -38,8 +40,10 @@ type UserStore interface {
 	SetFamily(ctx context.Context, userID, familyID string, role models.Role) error
 	SetColor(ctx context.Context, userID, color string) error
 	RemoveFromFamily(ctx context.Context, userID string) error
+	UpdatePassword(ctx context.Context, userID, passwordHash string) error
 }
 
+// FamilyStore представляет хранилище семей.
 type FamilyStore interface {
 	CreateFamily(ctx context.Context, name, ownerID string) (*models.Family, error)
 	GetFamilyByID(ctx context.Context, id string) (*models.Family, error)
@@ -53,6 +57,8 @@ type SessionStore interface {
 	GetSession(ctx context.Context, id string) (*models.Session, error)
 	DeleteSession(ctx context.Context, id string) error
 	DeleteExpiredSessions(ctx context.Context) error
+	DeleteSessionsExcept(ctx context.Context, userID, keepID string) error
+	DeleteAllUserSessions(ctx context.Context, userID string) error
 }
 
 type InviteStore interface {
@@ -82,4 +88,13 @@ type TemplateStore interface {
 	// Для scheduler-а.
 	ListDueTemplates(ctx context.Context, now time.Time) ([]*models.TaskTemplate, error)
 	SetTemplateNextRun(ctx context.Context, id string, next time.Time) error
+}
+
+// PasswordResetStore Репозиторий для хранения паролей для сброса пароля
+type PasswordResetStore interface {
+	Create(ctx context.Context, r *models.PasswordReset) error
+	GetByTokenHash(ctx context.Context, hash string) (*models.PasswordReset, error)
+	MarkUsed(ctx context.Context, id string, at time.Time) error
+	DeleteForUser(ctx context.Context, userID string) error
+	DeleteExpired(ctx context.Context) error
 }

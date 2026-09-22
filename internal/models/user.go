@@ -72,3 +72,32 @@ type Session struct {
 	ExpiresAt time.Time
 	UserAgent string
 }
+
+// --- change / reset password ---
+
+// ChangePasswordRequest — запрос на изменение пароля.
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
+// ForgotPasswordRequest — запрос на сброс пароля
+type ForgotPasswordRequest struct {
+	Email string `json:"email"`
+}
+
+// ResetPasswordRequest — запрос на сброс пароля.
+type ResetPasswordRequest struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"newPassword"`
+}
+
+// PasswordReset — строка таблицы password_resets.
+type PasswordReset struct {
+	ID        string
+	UserID    string
+	TokenHash string
+	ExpiresAt time.Time
+	UsedAt    *time.Time
+	CreatedAt time.Time
+}

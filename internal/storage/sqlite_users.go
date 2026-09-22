@@ -150,3 +150,17 @@ func scanUserFull(r rowScanner) (*models.User, error) {
 	u.CreatedAt = t
 	return &u, nil
 }
+
+// UpdatePassword updates user's password hash.
+func (r *UsersRepo) UpdatePassword(ctx context.Context, userID, passwordHash string) error {
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE users SET password_hash = ? WHERE id = ?`,
+		passwordHash, userID)
+	if err != nil {
+		return fmt.Errorf("update password: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}

@@ -47,6 +47,7 @@ export async function api(path, options = {}) {
   }
 
   // Любой ответ — значит связь есть.
+  // 
   setOnline(true);
 
   const ms = Math.round(performance.now() - t0);

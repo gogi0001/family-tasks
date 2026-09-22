@@ -9,12 +9,15 @@ import (
 	"github.com/gogi0001/family-tasks/internal/models"
 )
 
+// InvitesRepo Репозиторий инвайтов
 type InvitesRepo struct{ db *sql.DB }
 
+// NewInvitesRepo Фабрика для создания нового репозитория
 func NewInvitesRepo(s *SQLite) *InvitesRepo {
 	return &InvitesRepo{db: s.db}
 }
 
+// Create Создание инвайта в репозитории
 func (r *InvitesRepo) Create(ctx context.Context, inv *models.Invite) error {
 	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO invites (id, code, family_id, created_by, expires_at, created_at)
@@ -29,6 +32,7 @@ func (r *InvitesRepo) Create(ctx context.Context, inv *models.Invite) error {
 	return nil
 }
 
+// GetByCode Получение объекта инвайта по его коду
 func (r *InvitesRepo) GetByCode(ctx context.Context, code string) (*models.Invite, error) {
 	row := r.db.QueryRowContext(ctx, `
 		SELECT i.id, i.code, i.family_id, COALESCE(f.name, ''),

@@ -71,3 +71,16 @@ func (r *SessionsRepo) DeleteExpiredSessions(ctx context.Context) error {
 }
 
 var _ = errors.New // на случай, если errors не используется
+
+func (r *SessionsRepo) DeleteSessionsExcept(ctx context.Context, userID, keepID string) error {
+	_, err := r.db.ExecContext(ctx,
+		`DELETE FROM sessions WHERE user_id = ? AND id != ?`,
+		userID, keepID)
+	return err
+}
+
+func (r *SessionsRepo) DeleteAllUserSessions(ctx context.Context, userID string) error {
+	_, err := r.db.ExecContext(ctx,
+		`DELETE FROM sessions WHERE user_id = ?`, userID)
+	return err
+}
