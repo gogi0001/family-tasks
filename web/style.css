@@ -748,44 +748,6 @@ main {
   color: var(--text);
 }
 
-.family-modal-code {
-  display: grid;
-  gap: 4px;
-  padding: 10px 12px;
-  background: var(--bg);
-  border-radius: 8px;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-}
-
-.family-modal-code .label {
-  grid-column: 1 / -1;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.family-modal-code b {
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 18px;
-  letter-spacing: 1px;
-  word-break: break-all;
-}
-
-#family-modal-regen {
-  padding: 4px 10px;
-  font-size: 15px;
-  line-height: 1;
-  color: var(--muted);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-#family-modal-regen:active {
-  background: #fff;
-}
-
 .family-modal-members-label {
   font-size: 12px;
   color: var(--muted);
@@ -1632,5 +1594,108 @@ button.attachment-add.is-empty {
 }
 
 #newpass-modal button:active {
+  filter: brightness(0.95);
+}
+
+/* ─── Кнопка смены пароля в шапке ─────────────── */
+#who-password {
+  padding: 2px 8px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#who-password:active {
+  background: var(--bg);
+}
+
+/* ─── Modal: change password ──────────────────── */
+#password-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 22, 26, 0.4);
+  padding: 16px;
+}
+
+#password-modal.open {
+  display: flex;
+}
+
+#password-modal form {
+  width: 100%;
+  max-width: 380px;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 20px;
+  display: grid;
+  gap: 14px;
+}
+
+#password-modal h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+#password-modal .field {
+  display: grid;
+  gap: 4px;
+}
+
+#password-modal .field-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+#password-modal input {
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+}
+
+#password-modal input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+#password-modal .modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+#password-modal .modal-actions button {
+  padding: 11px;
+  font: inherit;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#pwd-cancel {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+#password-modal button[type="submit"] {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+}
+
+#password-modal button:active {
   filter: brightness(0.95);
 }

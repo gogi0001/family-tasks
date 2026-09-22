@@ -28,6 +28,7 @@
         <span id="who-avatar-letter"></span>
       </button>
       <span id="who-name"></span>
+      <button id="who-password" type="button" title="Сменить пароль" hidden>🔑</button>
       <button id="who-logout" type="button" hidden title="Выйти">×</button>
     </div>
   </header>
@@ -114,6 +115,7 @@
 
   <button id="add-task-fab" type="button" title="Добавить задачу" hidden>+</button>
 
+  <!-- Модалка добавления задачи -->
   <div id="add-task-modal">
     <form id="add-form">
       <h2>Новая задача</h2>
@@ -177,6 +179,7 @@
     </form>
   </div>
 
+  <!-- Модалка списка повторяющихся -->
   <div id="templates-modal">
     <div class="templates-card">
       <div class="family-modal-head">
@@ -196,6 +199,7 @@
     </div>
   </div>
 
+  <!-- Модалка входа / регистрации -->
   <div id="auth-modal">
     <div class="auth-card">
       <div class="auth-tabs">
@@ -225,17 +229,12 @@
     </div>
   </div>
 
+  <!-- Модалка управления семьёй -->
   <div id="family-modal">
     <div class="family-modal-card">
       <div class="family-modal-head">
         <h2 id="family-modal-title"></h2>
         <button type="button" id="family-modal-close" title="Закрыть">×</button>
-      </div>
-
-      <div class="family-modal-code">
-        <span class="label">Код приглашения</span>
-        <b id="family-modal-code"></b>
-        <button type="button" id="family-modal-regen" title="Перевыпустить код" hidden>↻</button>
       </div>
 
       <div class="family-modal-members-label">Участники</div>
@@ -255,6 +254,37 @@
     </div>
   </div>
 
+  <!-- Модалка смены пароля -->
+  <div id="password-modal">
+    <form id="password-form">
+      <h2>Сменить пароль</h2>
+
+      <label class="field">
+        <span class="field-label">Текущий пароль</span>
+        <input id="pwd-current" type="password" required inputmode="text" autocomplete="current-password"
+          autocorrect="off" autocapitalize="off" spellcheck="false">
+      </label>
+
+      <label class="field">
+        <span class="field-label">Новый пароль (минимум 8 символов)</span>
+        <input id="pwd-new" type="password" required minlength="8" inputmode="text" autocomplete="new-password"
+          autocorrect="off" autocapitalize="off" spellcheck="false">
+      </label>
+
+      <label class="field">
+        <span class="field-label">Повторите новый пароль</span>
+        <input id="pwd-confirm" type="password" required minlength="8" inputmode="text" autocomplete="new-password"
+          autocorrect="off" autocapitalize="off" spellcheck="false">
+      </label>
+
+      <div class="modal-actions">
+        <button type="button" id="pwd-cancel">Отмена</button>
+        <button type="submit">Сменить</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Модалка изменения срока -->
   <div id="due-modal">
     <form id="due-form">
       <h2 id="due-modal-title">Изменить срок</h2>
@@ -268,7 +298,7 @@
     </form>
   </div>
 
-  <!-- Модалка "новый пароль" -->
+  <!-- Модалка "новый пароль участника" -->
   <div id="newpass-modal">
     <div class="newpass-card">
       <h2 id="newpass-title">Новый пароль</h2>
@@ -285,6 +315,7 @@
     </div>
   </div>
 
+  <!-- Палитра -->
   <div id="color-picker" hidden>
     <div id="color-grid"></div>
   </div>

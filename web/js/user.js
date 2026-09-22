@@ -18,10 +18,12 @@ export function renderUser() {
     els.avatar.hidden = false;
     els.who.textContent = state.user.name;
     els.whoLogout.hidden = false;
+    els.whoPassword.hidden = false;
   } else {
     els.avatar.hidden = true;
     els.who.textContent = '';
     els.whoLogout.hidden = true;
+    els.whoPassword.hidden = true;
     els.colorPicker.hidden = true;
   }
 }

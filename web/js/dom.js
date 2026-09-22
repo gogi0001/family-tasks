@@ -10,6 +10,7 @@ export const els = {
   connText: $('conn-text'),
   who: $('who-name'),
   whoLogout: $('who-logout'),
+  whoPassword: $('who-password'),
   avatar: $('who-avatar'),
   avatarLetter: $('who-avatar-letter'),
   colorPicker: $('color-picker'),
@@ -39,8 +40,6 @@ export const els = {
 
   familyModal: $('family-modal'),
   familyModalTitle: $('family-modal-title'),
-  familyModalCode: $('family-modal-code'),
-  familyModalRegen: $('family-modal-regen'),
   familyModalMembers: $('family-modal-members'),
   familyModalClose: $('family-modal-close'),
   familyModalCloseBtn: $('family-modal-close-btn'),
@@ -105,7 +104,15 @@ export const els = {
   dueClear: $('due-clear'),
   dueCancel: $('due-cancel'),
 
-  // Модалка нового пароля
+  // Модалка смены своего пароля
+  passwordModal: $('password-modal'),
+  passwordForm: $('password-form'),
+  pwdCurrent: $('pwd-current'),
+  pwdNew: $('pwd-new'),
+  pwdConfirm: $('pwd-confirm'),
+  pwdCancel: $('pwd-cancel'),
+
+  // Модалка нового пароля участника
   newpassModal: $('newpass-modal'),
   newpassTitle: $('newpass-title'),
   newpassSubtitle: $('newpass-subtitle'),

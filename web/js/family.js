@@ -55,8 +55,6 @@ function renderFamilyModal() {
   if (!view) return;
 
   els.familyModalTitle.textContent = view.family.name;
-  els.familyModalCode.textContent = view.family.inviteCode;
-  els.familyModalRegen.hidden = !isOwner();
 
   els.familyModalMembers.replaceChildren();
   for (const m of view.members) {
@@ -172,18 +170,7 @@ async function resetMemberPassword(id, name) {
   }
 }
 
-async function regenerateCode() {
-  if (!confirm('Старый код перестанет работать. Перевыпустить?')) return;
-  try {
-    await api('/families/invite/regenerate', { method: 'POST' });
-    await enterFamilyFlow();
-  } catch (e) {
-    if (e.status === 0) return;
-    toast(e.message, 'error');
-  }
-}
-
-// --- Модалка нового пароля ---
+// --- Модалка нового пароля участника ---
 
 function openNewPasswordModal(name, email, password) {
   els.newpassTitle.textContent = 'Новый пароль';
@@ -214,9 +201,7 @@ export function init() {
     if (e.key === 'Escape' && isFamilyModalOpen()) closeFamilyModal();
   });
 
-  els.familyModalRegen.addEventListener('click', regenerateCode);
-
-  // Модалка нового пароля
+  // Модалка нового пароля участника
   els.newpassClose.addEventListener('click', closeNewPassModal);
   els.newpassModal.addEventListener('click', (e) => {
     if (e.target === els.newpassModal) closeNewPassModal();

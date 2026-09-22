@@ -23,6 +23,7 @@ on('unauthenticated', () => {
   tasks.closeDueModal();
   family.closeFamilyModal();
   family.closeNewPassModal();
+  auth.closePasswordModal();
   attachments.closeLightbox();
   sse.stop();
   state.user = null;
@@ -40,6 +41,7 @@ on('logged-out', () => {
   tasks.closeDueModal();
   family.closeFamilyModal();
   family.closeNewPassModal();
+  auth.closePasswordModal();
   attachments.closeLightbox();
   sse.stop();
   state.family = null;
