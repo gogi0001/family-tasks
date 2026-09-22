@@ -1,11 +1,17 @@
 package api
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/gogi0001/family-tasks/internal/events"
 	"github.com/gogi0001/family-tasks/internal/models"
@@ -15,8 +21,9 @@ import (
 type familyHandler struct {
 	families storage.FamilyStore
 	users    storage.UserStore
-	events   *events.Hub
 	invites  storage.InviteStore
+	sessions storage.SessionStore
+	events   *events.Hub
 }
 
 func (h *familyHandler) create(w http.ResponseWriter, r *http.Request) {
@@ -179,6 +186,70 @@ func (h *familyHandler) removeMember(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// POST /api/v1/families/members/{id}/reset-password
+//
+// Owner сбрасывает пароль участнику семьи. Возвращает новый пароль
+// В ОТКРЫТОМ ВИДЕ (один раз), чтобы owner мог передать его участнику.
+// Все активные сессии участника при этом убиваются.
+func (h *familyHandler) resetMemberPassword(w http.ResponseWriter, r *http.Request) {
+	u, ok := requireFamily(w, r)
+	if !ok {
+		return
+	}
+	if u.Role != models.RoleOwner {
+		writeError(w, http.StatusForbidden, "only owner can reset member passwords")
+		return
+	}
+
+	targetID := strings.TrimSpace(r.PathValue("id"))
+	if targetID == "" {
+		writeError(w, http.StatusBadRequest, "member id is required")
+		return
+	}
+	if targetID == u.ID {
+		writeError(w, http.StatusBadRequest, "use change-password to reset your own password")
+		return
+	}
+
+	target, err := h.users.GetUser(r.Context(), targetID)
+	if err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+	if target.FamilyID != u.FamilyID {
+		writeError(w, http.StatusNotFound, "member not found")
+		return
+	}
+	if target.Email == "" {
+		writeError(w, http.StatusBadRequest, "user has no email — cannot login anyway")
+		return
+	}
+
+	pwd := newPassword(12)
+	hash, err := bcrypt.GenerateFromPassword([]byte(pwd), bcrypt.DefaultCost)
+	if err != nil {
+		slog.ErrorContext(r.Context(), "hash password", "err", err)
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	if err := h.users.UpdatePassword(r.Context(), target.ID, string(hash)); err != nil {
+		writeStoreError(w, r, err)
+		return
+	}
+
+	// Все сессии участника — в утиль.
+	_ = h.sessions.DeleteAllUserSessions(r.Context(), target.ID)
+
+	slog.InfoContext(r.Context(), "member password reset",
+		"by", u.Name, "target", target.Email)
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"password": pwd,
+		"name":     target.Name,
+		"email":    target.Email,
+	})
+}
+
 func (h *familyHandler) regenerateCode(w http.ResponseWriter, r *http.Request) {
 	u, ok := requireFamily(w, r)
 	if !ok {
@@ -207,3 +278,22 @@ func (h *familyHandler) regenerateCode(w http.ResponseWriter, r *http.Request) {
 	h.events.Broadcast(u.FamilyID, events.Event{Type: "family.changed"})
 	writeJSON(w, http.StatusOK, models.FamilyView{Family: *f, Members: members})
 }
+
+// newPassword — 12 символов без визуально похожих (0/O, 1/l/I).
+func newPassword(n int) string {
+	const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"
+	buf := make([]byte, n)
+	if _, err := rand.Read(buf); err != nil {
+		return base64.RawURLEncoding.EncodeToString([]byte(fmt.Sprintf("%d", time.Now().UnixNano())))[:n]
+	}
+	for i := range buf {
+		buf[i] = alphabet[int(buf[i])%len(alphabet)]
+	}
+	return string(buf)
+}
+
+// Заглушки, чтобы не рвать импорты если что-то не используется.
+var (
+	_ = errors.New
+	_ storage.UserStore
+)

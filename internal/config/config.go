@@ -11,33 +11,26 @@ import (
 	"time"
 )
 
-// Config — конфигурация для приложения.
 type Config struct {
-	Addr   string
-	WebDir string
-	DBPath string
+	Addr              string
+	WebDir            string
+	DBPath            string
+	UploadsDir        string
+	MaxUploadMB       int
+	NtfyURL           string
+	NtfyTopic         string
+	NtfyClick         string
+	ReminderInterval  string
+	ReminderWindow    string
+	SchedulerInterval string
+	LogLevel          string
+	LogFormat         string
 
-	UploadsDir         string
-	MaxUploadMB        int
-	NtfyURL            string
-	NtfyTopic          string
-	NtfyClick          string
-	ReminderInterval   string
-	ReminderWindow     string
-	LogLevel           string
-	LogFormat          string
-	SchedulerInterval  string
-	AppURL             string
-	SMTPHost           string
-	SMTPPort           int
-	SMTPUser           string
-	SMTPPass           string
-	SMTPFrom           string
+	// CLI-режим: сброс пароля и выход
 	ResetPassword      string
 	ResetPasswordValue string
 }
 
-// Parse — парсит аргументы командной строки и возвращает конфигурацию.
 func Parse(args []string) (*Config, error) {
 	fs := flag.NewFlagSet("family-tasks", flag.ContinueOnError)
 
@@ -51,42 +44,32 @@ func Parse(args []string) (*Config, error) {
 	ntfyClick := fs.String("ntfy-click", envOr("NTFY_CLICK", ""), "deep link для тапа по уведомлению, например familytasks://open")
 	reminderInterval := fs.String("reminder-interval", envOr("REMINDER_INTERVAL", "5m"), "как часто проверять приближающиеся сроки (например, 5m)")
 	reminderWindow := fs.String("reminder-window", envOr("REMINDER_WINDOW", "1h"), "за сколько до срока напоминать (например, 1h)")
+	schedulerInterval := fs.String("scheduler-interval", envOr("SCHEDULER_INTERVAL", "15m"), "как часто проверять повторяющиеся задачи")
 	logLevel := fs.String("log-level", envOr("LOG_LEVEL", "info"), "уровень логов: debug|info|warn|error")
 	logFormat := fs.String("log-format", envOr("LOG_FORMAT", "text"), "формат логов: text|json")
-	schedulerInterval := fs.String("scheduler-interval", envOr("SCHEDULER_INTERVAL", "15m"), "как часто проверять повторяющиеся задачи")
-	appURL := fs.String("app-url", envOr("APP_URL", ""), "базовый URL приложения для ссылок в письмах, например http://192.168.1.10:8787")
-	smtpHost := fs.String("smtp-host", envOr("SMTP_HOST", ""), "SMTP-хост (пусто = почта выключена)")
-	smtpPort := fs.Int("smtp-port", envOrInt("SMTP_PORT", 587), "SMTP-порт (587 STARTTLS, 465 SMTPS)")
-	smtpUser := fs.String("smtp-user", envOr("SMTP_USER", ""), "SMTP-логин")
-	smtpPass := fs.String("smtp-pass", envOr("SMTP_PASS", ""), "SMTP-пароль")
-	smtpFrom := fs.String("smtp-from", envOr("SMTP_FROM", ""), "отправитель, например «Family Tasks <noreply@example.com>»")
+
+	// CLI-режим: сброс пароля и выход
 	resetEmail := fs.String("reset-password", "", "сбросить пароль пользователю с указанным email и выйти")
-	resetValue := fs.String("new-password", "",   "новый пароль для -reset-password (если пусто — сгенерируется)")
+	resetValue := fs.String("new-password", "", "новый пароль для -reset-password (если пусто — сгенерируется)")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err
 	}
 
 	c := &Config{
-		Addr:              strings.TrimSpace(*addr),
-		WebDir:            strings.TrimSpace(*webDir),
-		DBPath:            strings.TrimSpace(*dbPath),
-		UploadsDir:        strings.TrimSpace(*uploadsDir),
-		MaxUploadMB:       *maxUploadMB,
-		NtfyURL:           strings.TrimRight(strings.TrimSpace(*ntfyURL), "/"),
-		NtfyTopic:         strings.TrimSpace(*ntfyTopic),
-		NtfyClick:         strings.TrimSpace(*ntfyClick),
-		ReminderInterval:  strings.TrimSpace(*reminderInterval),
-		ReminderWindow:    strings.TrimSpace(*reminderWindow),
-		LogLevel:          strings.ToLower(strings.TrimSpace(*logLevel)),
-		LogFormat:         strings.ToLower(strings.TrimSpace(*logFormat)),
-		SchedulerInterval: strings.TrimSpace(*schedulerInterval),
-		AppURL:            strings.TrimSpace(*appURL),
-		SMTPHost:          strings.TrimSpace(*smtpHost),
-		SMTPPort:          *smtpPort,
-		SMTPUser:          strings.TrimSpace(*smtpUser),
-		SMTPPass:          *smtpPass,
-		SMTPFrom:          strings.TrimSpace(*smtpFrom),
+		Addr:               strings.TrimSpace(*addr),
+		WebDir:             strings.TrimSpace(*webDir),
+		DBPath:             strings.TrimSpace(*dbPath),
+		UploadsDir:         strings.TrimSpace(*uploadsDir),
+		MaxUploadMB:        *maxUploadMB,
+		NtfyURL:            strings.TrimRight(strings.TrimSpace(*ntfyURL), "/"),
+		NtfyTopic:          strings.TrimSpace(*ntfyTopic),
+		NtfyClick:          strings.TrimSpace(*ntfyClick),
+		ReminderInterval:   strings.TrimSpace(*reminderInterval),
+		ReminderWindow:     strings.TrimSpace(*reminderWindow),
+		SchedulerInterval:  strings.TrimSpace(*schedulerInterval),
+		LogLevel:           strings.ToLower(strings.TrimSpace(*logLevel)),
+		LogFormat:          strings.ToLower(strings.TrimSpace(*logFormat)),
 		ResetPassword:      strings.TrimSpace(*resetEmail),
 		ResetPasswordValue: *resetValue,
 	}
@@ -95,11 +78,6 @@ func Parse(args []string) (*Config, error) {
 		return nil, err
 	}
 	return c, nil
-}
-
-// EmailEnabled возвращает true, если email отправка включена.
-func (c *Config) EmailEnabled() bool {
-	return c.SMTPHost != "" && c.SMTPFrom != ""
 }
 
 func (c *Config) validate() error {
@@ -135,7 +113,6 @@ func (c *Config) NtfyEnabled() bool {
 	return c.NtfyURL != "" && c.NtfyTopic != ""
 }
 
-// MaxUploadBytes возвращает лимит вложения в байтах.
 func (c *Config) MaxUploadBytes() int64 {
 	return int64(c.MaxUploadMB) << 20
 }
@@ -153,19 +130,6 @@ func (c *Config) SlogLevel() slog.Level {
 	}
 }
 
-// SchedulerDuration возвращает интервал тика scheduler-а.
-func (c *Config) SchedulerDuration() (time.Duration, error) {
-	d, err := time.ParseDuration(c.SchedulerInterval)
-	if err != nil {
-		return 0, fmt.Errorf("invalid scheduler-interval: %w", err)
-	}
-	if d <= 0 {
-		return 0, fmt.Errorf("scheduler-interval must be positive")
-	}
-	return d, nil
-}
-
-// ReminderDurations возвращает распарсенные интервал и окно.
 func (c *Config) ReminderDurations() (interval, window time.Duration, err error) {
 	interval, err = time.ParseDuration(c.ReminderInterval)
 	if err != nil {
@@ -181,17 +145,22 @@ func (c *Config) ReminderDurations() (interval, window time.Duration, err error)
 	return interval, window, nil
 }
 
+func (c *Config) SchedulerDuration() (time.Duration, error) {
+	d, err := time.ParseDuration(c.SchedulerInterval)
+	if err != nil {
+		return 0, fmt.Errorf("invalid scheduler-interval: %w", err)
+	}
+	if d <= 0 {
+		return 0, fmt.Errorf("scheduler-interval must be positive")
+	}
+	return d, nil
+}
+
 func Usage(fs *flag.FlagSet) func() {
 	return func() {
 		fmt.Fprintf(fs.Output(), "Usage: %s [flags]\n\n", filepath.Base(os.Args[0]))
 		fmt.Fprintf(fs.Output(), "Flags (env var override in parentheses):\n")
 		fs.PrintDefaults()
-		fmt.Fprintln(fs.Output())
-		fmt.Fprintln(fs.Output(), "Examples:")
-		fmt.Fprintln(fs.Output(), "  family-tasks")
-		fmt.Fprintln(fs.Output(), "  family-tasks -addr :9000 -db /var/lib/family-tasks/tasks.db")
-		fmt.Fprintln(fs.Output(), "  family-tasks -max-upload-mb 50 -uploads-dir /var/lib/family-tasks/uploads")
-		fmt.Fprintln(fs.Output(), "  family-tasks -ntfy-url http://localhost:7070 -ntfy-topic family-tasks-home -ntfy-click familytasks://open")
 	}
 }
 

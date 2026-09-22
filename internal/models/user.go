@@ -30,7 +30,7 @@ type RegisterRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 	Name     string `json:"name"`
-	Invite   string `json:"invite,omitempty"` // код инвайта, опционально
+	Invite   string `json:"invite,omitempty"`
 }
 
 type LoginRequest struct {
@@ -38,10 +38,15 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
 // --- invites ---
 
 type CreateInviteRequest struct {
-	ExpiresInDays int `json:"expiresInDays,omitempty"` // 0 = 7 по умолчанию
+	ExpiresInDays int `json:"expiresInDays,omitempty"`
 }
 
 type Invite struct {
@@ -63,7 +68,7 @@ type InviteInfo struct {
 	ExpiresAt  time.Time `json:"expiresAt"`
 }
 
-// --- sessions (внутренний тип, наружу не отдаём) ---
+// --- sessions (внутренний тип) ---
 
 type Session struct {
 	ID        string
@@ -71,33 +76,4 @@ type Session struct {
 	CreatedAt time.Time
 	ExpiresAt time.Time
 	UserAgent string
-}
-
-// --- change / reset password ---
-
-// ChangePasswordRequest — запрос на изменение пароля.
-type ChangePasswordRequest struct {
-	CurrentPassword string `json:"currentPassword"`
-	NewPassword     string `json:"newPassword"`
-}
-
-// ForgotPasswordRequest — запрос на сброс пароля
-type ForgotPasswordRequest struct {
-	Email string `json:"email"`
-}
-
-// ResetPasswordRequest — запрос на сброс пароля.
-type ResetPasswordRequest struct {
-	Token       string `json:"token"`
-	NewPassword string `json:"newPassword"`
-}
-
-// PasswordReset — строка таблицы password_resets.
-type PasswordReset struct {
-	ID        string
-	UserID    string
-	TokenHash string
-	ExpiresAt time.Time
-	UsedAt    *time.Time
-	CreatedAt time.Time
 }

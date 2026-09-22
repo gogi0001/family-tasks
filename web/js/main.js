@@ -8,10 +8,10 @@ import * as auth from './auth.js';
 import * as family from './family.js';
 import * as tasks from './tasks.js';
 import * as invites from './invites.js';
+import * as templates from './templates.js';
 import * as connection from './connection.js';
 import * as attachments from './attachments.js';
 import * as sse from './sse.js';
-import * as templates from './templates.js';
 
 checkDom();
 
@@ -20,8 +20,9 @@ checkDom();
 on('unauthenticated', () => {
   log('event: unauthenticated — reset');
   tasks.closeAddModal();
-  tasks.closeDueModal();          // ← новое
+  tasks.closeDueModal();
   family.closeFamilyModal();
+  family.closeNewPassModal();
   attachments.closeLightbox();
   sse.stop();
   state.user = null;
@@ -36,8 +37,9 @@ on('unauthenticated', () => {
 on('logged-out', () => {
   log('event: logged-out');
   tasks.closeAddModal();
-  tasks.closeDueModal();          // ← новое
+  tasks.closeDueModal();
   family.closeFamilyModal();
+  family.closeNewPassModal();
   attachments.closeLightbox();
   sse.stop();
   state.family = null;
@@ -76,6 +78,11 @@ on('attachments-changed', () => {
   tasks.load();
 });
 
+on('template-changed', () => {
+  log('event: template-changed');
+  templates.reloadIfOpen();
+});
+
 on('connection-changed', async (online) => {
   log('event: connection-changed →', online ? 'online' : 'offline');
   state.online = online;
@@ -102,19 +109,14 @@ on('sse-open', () => {
   tasks.load();
 });
 
-on('template-changed', () => {
-  log('event: template-changed');
-  templates.reloadIfOpen();
-});
-
 // --- Init ---
 
 user.init();
 auth.init();
 family.init();
 tasks.init();
-templates.init();        // ← новое
 invites.init();
+templates.init();
 attachments.init();
 connection.renderConnection();
 

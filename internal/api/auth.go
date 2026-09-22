@@ -1,12 +1,8 @@
 package api
 
 import (
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"regexp"
@@ -16,7 +12,6 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/gogi0001/family-tasks/internal/email"
 	"github.com/gogi0001/family-tasks/internal/models"
 	"github.com/gogi0001/family-tasks/internal/storage"
 )
@@ -28,9 +23,6 @@ type authHandler struct {
 	sessions storage.SessionStore
 	invites  storage.InviteStore
 	families storage.FamilyStore
-	resets   storage.PasswordResetStore
-	mailer   *email.Sender
-	appURL   string
 }
 
 func (h *authHandler) register(w http.ResponseWriter, r *http.Request) {
@@ -74,7 +66,6 @@ func (h *authHandler) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Если задан инвайт — присоединяем к семье
 	if req.Invite != "" {
 		inv, err := h.invites.GetByCode(r.Context(), req.Invite)
 		if err != nil {
@@ -98,7 +89,6 @@ func (h *authHandler) register(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Создаём сессию и ставим cookie
 	if err := h.startSession(w, r, u); err != nil {
 		slog.ErrorContext(r.Context(), "create session", "err", err)
 		writeError(w, http.StatusInternalServerError, "internal error")
@@ -119,7 +109,6 @@ func (h *authHandler) login(w http.ResponseWriter, r *http.Request) {
 	u, hash, err := h.users.GetUserByEmail(r.Context(), req.Email)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			// одинаковое сообщение, чтобы не палить существование email
 			writeError(w, http.StatusUnauthorized, "invalid credentials")
 			return
 		}
@@ -151,23 +140,6 @@ func (h *authHandler) logout(w http.ResponseWriter, r *http.Request) {
 	}
 	clearSessionCookie(w)
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// startSession создаёт запись в БД и ставит cookie.
-func (h *authHandler) startSession(w http.ResponseWriter, r *http.Request, u *models.User) error {
-	now := time.Now().UTC()
-	sess := &models.Session{
-		ID:        uuid.NewString(),
-		UserID:    u.ID,
-		CreatedAt: now,
-		ExpiresAt: now.Add(sessionTTL),
-		UserAgent: r.UserAgent(),
-	}
-	if err := h.sessions.CreateSession(r.Context(), sess); err != nil {
-		return err
-	}
-	setSessionCookie(w, sess.ID, sess.ExpiresAt)
-	return nil
 }
 
 // POST /api/v1/auth/change-password
@@ -221,138 +193,19 @@ func (h *authHandler) changePassword(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// POST /api/v1/auth/forgot
-func (h *authHandler) forgotPassword(w http.ResponseWriter, r *http.Request) {
-	var req models.ForgotPasswordRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json")
-		return
-	}
-	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
-	if req.Email == "" {
-		writeError(w, http.StatusBadRequest, "email is required")
-		return
-	}
-
-	// Всегда 200, чтобы не палить существование email.
-	u, _, err := h.users.GetUserByEmail(r.Context(), req.Email)
-	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-			return
-		}
-		writeError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-
-	if h.mailer == nil {
-		writeError(w, http.StatusServiceUnavailable, "email is not configured on this server")
-		return
-	}
-
-	// Генерируем токен и его хеш.
-	raw := make([]byte, 32)
-	if _, err := rand.Read(raw); err != nil {
-		slog.ErrorContext(r.Context(), "rand", "err", err)
-		writeError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-	token := hex.EncodeToString(raw)
-	sum := sha256.Sum256([]byte(token))
-	tokenHash := hex.EncodeToString(sum[:])
-
-	// Затираем предыдущие непогашенные токены пользователя.
-	_ = h.resets.DeleteForUser(r.Context(), u.ID)
-
+// startSession создаёт запись в БД и ставит cookie.
+func (h *authHandler) startSession(w http.ResponseWriter, r *http.Request, u *models.User) error {
 	now := time.Now().UTC()
-	pr := &models.PasswordReset{
+	sess := &models.Session{
 		ID:        uuid.NewString(),
 		UserID:    u.ID,
-		TokenHash: tokenHash,
-		ExpiresAt: now.Add(1 * time.Hour),
 		CreatedAt: now,
+		ExpiresAt: now.Add(sessionTTL),
+		UserAgent: r.UserAgent(),
 	}
-	if err := h.resets.Create(r.Context(), pr); err != nil {
-		slog.ErrorContext(r.Context(), "create reset", "err", err)
-		writeError(w, http.StatusInternalServerError, "internal error")
-		return
+	if err := h.sessions.CreateSession(r.Context(), sess); err != nil {
+		return err
 	}
-
-	link := strings.TrimRight(h.appURL, "/") + "/?reset=" + token
-	body := fmt.Sprintf(
-		"Здравствуйте, %s!\n\n"+
-			"Кто-то запросил сброс пароля для вашего аккаунта в Family Tasks.\n"+
-			"Если это были вы — перейдите по ссылке (действует 1 час):\n\n%s\n\n"+
-			"Если вы не запрашивали сброс — просто проигнорируйте это письмо.\n",
-		u.Name, link,
-	)
-	if err := h.mailer.Send(u.Email, "Сброс пароля Family Tasks", body); err != nil {
-		slog.ErrorContext(r.Context(), "send reset email", "err", err, "to", u.Email)
-		writeError(w, http.StatusBadGateway, "failed to send email")
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-}
-
-// POST /api/v1/auth/reset
-func (h *authHandler) resetPassword(w http.ResponseWriter, r *http.Request) {
-	var req models.ResetPasswordRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid json")
-		return
-	}
-	req.Token = strings.TrimSpace(req.Token)
-	if req.Token == "" {
-		writeError(w, http.StatusBadRequest, "token is required")
-		return
-	}
-	if len(req.NewPassword) < 8 {
-		writeError(w, http.StatusBadRequest, "password must be at least 8 characters")
-		return
-	}
-
-	sum := sha256.Sum256([]byte(req.Token))
-	tokenHash := hex.EncodeToString(sum[:])
-
-	pr, err := h.resets.GetByTokenHash(r.Context(), tokenHash)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid or expired token")
-		return
-	}
-	if pr.UsedAt != nil {
-		writeError(w, http.StatusBadRequest, "token already used")
-		return
-	}
-	if time.Now().After(pr.ExpiresAt) {
-		writeError(w, http.StatusBadRequest, "token expired")
-		return
-	}
-
-	newHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-	if err := h.users.UpdatePassword(r.Context(), pr.UserID, string(newHash)); err != nil {
-		writeStoreError(w, r, err)
-		return
-	}
-	_ = h.resets.MarkUsed(r.Context(), pr.ID, time.Now().UTC())
-
-	// Все старые сессии — в утиль.
-	_ = h.sessions.DeleteAllUserSessions(r.Context(), pr.UserID)
-
-	// Автоматически логиним пользователя.
-	u, err := h.users.GetUser(r.Context(), pr.UserID)
-	if err != nil {
-		writeStoreError(w, r, err)
-		return
-	}
-	if err := h.startSession(w, r, u); err != nil {
-		slog.ErrorContext(r.Context(), "start session after reset", "err", err)
-		writeError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-	writeJSON(w, http.StatusOK, u)
+	setSessionCookie(w, sess.ID, sess.ExpiresAt)
+	return nil
 }

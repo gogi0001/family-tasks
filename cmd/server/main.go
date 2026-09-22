@@ -19,7 +19,6 @@ import (
 
 	"github.com/gogi0001/family-tasks/internal/api"
 	"github.com/gogi0001/family-tasks/internal/config"
-	"github.com/gogi0001/family-tasks/internal/email"
 	"github.com/gogi0001/family-tasks/internal/events"
 	"github.com/gogi0001/family-tasks/internal/notify"
 	"github.com/gogi0001/family-tasks/internal/reminder"
@@ -39,9 +38,7 @@ func main() {
 
 	setupLogger(cfg)
 
-	// --- CLI-режим: сброс пароля вручную ---
-	// Если задан флаг -reset-password <email>, сервер ничего не запускает,
-	// а сразу сбрасывает пароль пользователю и выходит.
+	// --- CLI-режим: сброс пароля вручную, без запуска сервера ---
 	if cfg.ResetPassword != "" {
 		runPasswordResetCLI(cfg)
 		return
@@ -80,15 +77,6 @@ func main() {
 	invites := storage.NewInvitesRepo(store)
 	atts := storage.NewAttachmentRepo(store)
 	templates := storage.NewTemplatesRepo(store)
-	resets := storage.NewResetsRepo(store)
-
-	mailer := email.New(email.Config{
-		Host:     cfg.SMTPHost,
-		Port:     cfg.SMTPPort,
-		User:     cfg.SMTPUser,
-		Password: cfg.SMTPPass,
-		From:     cfg.SMTPFrom,
-	})
 
 	ntfyClient := notify.NewClient(cfg.NtfyURL, cfg.NtfyTopic, cfg.NtfyClick)
 	hub := events.NewHub()
@@ -111,8 +99,9 @@ func main() {
 		"uploads_dir", cfg.UploadsDir,
 		"max_upload_mb", cfg.MaxUploadMB,
 		"ntfy_enabled", cfg.NtfyEnabled(),
-		"email_enabled", cfg.EmailEnabled(),
-		"app_url", cfg.AppURL,
+		"ntfy_url", cfg.NtfyURL,
+		"ntfy_topic", cfg.NtfyTopic,
+		"ntfy_click", cfg.NtfyClick,
 	)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -124,7 +113,7 @@ func main() {
 	taskScheduler := scheduler.New(templates, store, hub, schedulerInterval)
 	go taskScheduler.Run(ctx)
 
-	// Чистка протухших сессий и reset-токенов — раз в час.
+	// Периодическая чистка протухших сессий — раз в час.
 	go func() {
 		t := time.NewTicker(1 * time.Hour)
 		defer t.Stop()
@@ -135,9 +124,6 @@ func main() {
 			case <-t.C:
 				if err := sessions.DeleteExpiredSessions(ctx); err != nil {
 					slog.Warn("cleanup sessions", "err", err)
-				}
-				if err := resets.DeleteExpired(ctx); err != nil {
-					slog.Warn("cleanup resets", "err", err)
 				}
 			}
 		}
@@ -155,9 +141,6 @@ func main() {
 			Sessions:       sessions,
 			Invites:        invites,
 			Templates:      templates,
-			Resets:         resets,
-			Mailer:         mailer,
-			AppURL:         cfg.AppURL,
 			MaxUploadBytes: cfg.MaxUploadBytes(),
 			Ntfy:           ntfyClient,
 			Events:         hub,
@@ -185,7 +168,6 @@ func main() {
 // --- CLI: сброс пароля вручную ---
 
 func runPasswordResetCLI(cfg *config.Config) {
-	// Тихо открываем БД, ничего не запускаем.
 	store, err := storage.OpenSQLite(cfg.DBPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "open db:", err)
@@ -204,7 +186,7 @@ func runPasswordResetCLI(cfg *config.Config) {
 	pwd := cfg.ResetPasswordValue
 	generated := false
 	if pwd == "" {
-		pwd = generatePassword(16)
+		pwd = generatePassword(12)
 		generated = true
 	}
 	if len(pwd) < 8 {
@@ -222,7 +204,6 @@ func runPasswordResetCLI(cfg *config.Config) {
 		os.Exit(1)
 	}
 
-	// Убиваем все сессии пользователя.
 	sessions := storage.NewSessionsRepo(store)
 	_ = sessions.DeleteAllUserSessions(context.Background(), u.ID)
 
@@ -234,12 +215,11 @@ func runPasswordResetCLI(cfg *config.Config) {
 	}
 }
 
+// generatePassword — 12 символов без визуально похожих (0/O, 1/l/I).
 func generatePassword(n int) string {
-	// Алфавит без похожих символов.
 	const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789"
 	buf := make([]byte, n)
 	if _, err := rand.Read(buf); err != nil {
-		// Крайне маловероятно; возвращаем что-то осмысленное.
 		return base64.RawURLEncoding.EncodeToString([]byte(time.Now().String()))[:n]
 	}
 	for i := range buf {
@@ -248,7 +228,7 @@ func generatePassword(n int) string {
 	return string(buf)
 }
 
-// --- helpers (без изменений) ---
+// --- helpers ---
 
 func setupLogger(cfg *config.Config) {
 	opts := &slog.HandlerOptions{Level: cfg.SlogLevel()}

@@ -77,15 +77,6 @@ export const els = {
   dueField: $('due-field'),
   description: $('description'),
 
-  // Модалка срока
-  dueModal: $('due-modal'),
-  dueForm: $('due-form'),
-  dueModalTitle: $('due-modal-title'),
-  dueModalTask: $('due-modal-task'),
-  dueInput: $('due-input'),
-  dueClear: $('due-clear'),
-  dueCancel: $('due-cancel'),
-
   // Повторяющиеся
   taskRecurring: $('task-recurring'),
   recurringFields: $('recurring-fields'),
@@ -104,6 +95,23 @@ export const els = {
   templatesEmpty: $('templates-empty'),
   templatesClose: $('templates-close'),
   templatesCloseBtn: $('templates-close-btn'),
+
+  // Модалка срока
+  dueModal: $('due-modal'),
+  dueForm: $('due-form'),
+  dueModalTitle: $('due-modal-title'),
+  dueModalTask: $('due-modal-task'),
+  dueInput: $('due-input'),
+  dueClear: $('due-clear'),
+  dueCancel: $('due-cancel'),
+
+  // Модалка нового пароля
+  newpassModal: $('newpass-modal'),
+  newpassTitle: $('newpass-title'),
+  newpassSubtitle: $('newpass-subtitle'),
+  newpassValue: $('newpass-value'),
+  newpassCopy: $('newpass-copy'),
+  newpassClose: $('newpass-close'),
 
   // Вложения
   uploadInput: $('upload-input'),

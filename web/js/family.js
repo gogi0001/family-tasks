@@ -33,7 +33,7 @@ export function isOwner() {
   return myRole() === 'owner';
 }
 
-// --- Модалка ---
+// --- Модалка семьи ---
 
 function openFamilyModal() {
   if (!state.family) return;
@@ -70,6 +70,19 @@ function renderFamilyModal() {
 
     c.appendChild(document.createTextNode(m.name + (m.role === 'owner' ? ' ★' : '')));
 
+    // Кнопка сброса пароля — только owner и не для себя
+    const canReset = isOwner() && m.id !== state.user?.id;
+    if (canReset) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip-remove';
+      btn.title = 'Сбросить пароль участнику';
+      btn.textContent = '🔑';
+      btn.addEventListener('click', () => resetMemberPassword(m.id, m.name));
+      c.appendChild(btn);
+    }
+
+    // Кнопка удаления из семьи — только owner и не для себя
     const canRemove = isOwner() && m.id !== state.user?.id;
     if (canRemove) {
       const btn = document.createElement('button');
@@ -141,6 +154,24 @@ async function removeMember(id, name) {
   }
 }
 
+async function resetMemberPassword(id, name) {
+  if (!confirm(
+    `Сбросить пароль участнику «${name}»?\n\n` +
+    `Все его активные сессии будут завершены, ` +
+    `а старый пароль перестанет работать.`
+  )) return;
+
+  try {
+    const res = await api(`/families/members/${id}/reset-password`, {
+      method: 'POST',
+    });
+    openNewPasswordModal(res.name, res.email, res.password);
+  } catch (e) {
+    if (e.status === 0) return;
+    toast(e.message, 'error');
+  }
+}
+
 async function regenerateCode() {
   if (!confirm('Старый код перестанет работать. Перевыпустить?')) return;
   try {
@@ -150,6 +181,24 @@ async function regenerateCode() {
     if (e.status === 0) return;
     toast(e.message, 'error');
   }
+}
+
+// --- Модалка нового пароля ---
+
+function openNewPasswordModal(name, email, password) {
+  els.newpassTitle.textContent = 'Новый пароль';
+  els.newpassSubtitle.textContent = `Для ${name} (${email})`;
+  els.newpassValue.textContent = password;
+  els.newpassModal.classList.add('open');
+}
+
+export function closeNewPassModal() {
+  els.newpassModal.classList.remove('open');
+  els.newpassValue.textContent = '';
+}
+
+function isNewPassOpen() {
+  return els.newpassModal.classList.contains('open');
 }
 
 // --- Init ---
@@ -167,6 +216,26 @@ export function init() {
 
   els.familyModalRegen.addEventListener('click', regenerateCode);
 
+  // Модалка нового пароля
+  els.newpassClose.addEventListener('click', closeNewPassModal);
+  els.newpassModal.addEventListener('click', (e) => {
+    if (e.target === els.newpassModal) closeNewPassModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isNewPassOpen()) closeNewPassModal();
+  });
+  els.newpassCopy.addEventListener('click', async () => {
+    const pwd = els.newpassValue.textContent;
+    if (!pwd) return;
+    try {
+      await navigator.clipboard.writeText(pwd);
+      toast('Пароль скопирован', 'info');
+    } catch {
+      window.prompt('Скопируйте пароль:', pwd);
+    }
+  });
+
+  // Создание семьи
   els.createForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!state.user) { emit('unauthenticated'); return; }
@@ -185,6 +254,7 @@ export function init() {
     }
   });
 
+  // Присоединение по инвайту
   els.joinForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!state.user) { emit('unauthenticated'); return; }

@@ -6,13 +6,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gogi0001/family-tasks/internal/email"
 	"github.com/gogi0001/family-tasks/internal/events"
 	"github.com/gogi0001/family-tasks/internal/notify"
 	"github.com/gogi0001/family-tasks/internal/storage"
 )
 
-// Config — конфигурация для API.
 type Config struct {
 	WebDir         string
 	Tasks          storage.TaskStore
@@ -22,35 +20,46 @@ type Config struct {
 	Files          *storage.FileStorage
 	Sessions       storage.SessionStore
 	Invites        storage.InviteStore
+	Templates      storage.TemplateStore
 	MaxUploadBytes int64
 	Ntfy           *notify.Client
 	Events         *events.Hub
-	Templates      storage.TemplateStore
-	Resets         storage.PasswordResetStore
-	Mailer         *email.Sender
-	AppURL         string
 }
 
-// NewRouter — конструктор для API.
 func NewRouter(cfg Config) http.Handler {
 	mux := http.NewServeMux()
 
-	th := &tasksHandler{store: cfg.Tasks, atts: cfg.Atts, files: cfg.Files, ntfy: cfg.Ntfy, events: cfg.Events}
+	th := &tasksHandler{
+		store:  cfg.Tasks,
+		atts:   cfg.Atts,
+		files:  cfg.Files,
+		ntfy:   cfg.Ntfy,
+		events: cfg.Events,
+	}
 	mh := &meHandler{users: cfg.Users}
-	fh := &familyHandler{families: cfg.Families, users: cfg.Users, invites: cfg.Invites, events: cfg.Events}
-	ah := &attachmentsHandler{tasks: cfg.Tasks, atts: cfg.Atts, files: cfg.Files, events: cfg.Events, maxBytes: cfg.MaxUploadBytes}
+	fh := &familyHandler{
+		families: cfg.Families,
+		users:    cfg.Users,
+		invites:  cfg.Invites,
+		sessions: cfg.Sessions,
+		events:   cfg.Events,
+	}
+	ah := &attachmentsHandler{
+		tasks:    cfg.Tasks,
+		atts:     cfg.Atts,
+		files:    cfg.Files,
+		events:   cfg.Events,
+		maxBytes: cfg.MaxUploadBytes,
+	}
 	authh := &authHandler{
 		users:    cfg.Users,
 		sessions: cfg.Sessions,
 		invites:  cfg.Invites,
 		families: cfg.Families,
-		resets:   cfg.Resets,
-		mailer:   cfg.Mailer,
-		appURL:   cfg.AppURL,
 	}
 	ih := &invitesHandler{invites: cfg.Invites, families: cfg.Families}
-	sh := &sseHandler{hub: cfg.Events}
 	tmplh := &templatesHandler{templates: cfg.Templates, events: cfg.Events}
+	sh := &sseHandler{hub: cfg.Events}
 
 	mux.HandleFunc("GET /api/v1/ping", handlePing)
 
@@ -59,8 +68,6 @@ func NewRouter(cfg Config) http.Handler {
 	mux.HandleFunc("POST /api/v1/auth/login", authh.login)
 	mux.HandleFunc("POST /api/v1/auth/logout", authh.logout)
 	mux.HandleFunc("POST /api/v1/auth/change-password", authh.changePassword)
-	mux.HandleFunc("POST /api/v1/auth/forgot", authh.forgotPassword)
-	mux.HandleFunc("POST /api/v1/auth/reset", authh.resetPassword)
 
 	// --- me ---
 	mux.HandleFunc("GET /api/v1/me", mh.get)
@@ -74,29 +81,35 @@ func NewRouter(cfg Config) http.Handler {
 	mux.HandleFunc("POST /api/v1/families/join", fh.join)
 	mux.HandleFunc("GET /api/v1/families/me", fh.me)
 	mux.HandleFunc("DELETE /api/v1/families/members/{id}", fh.removeMember)
+	mux.HandleFunc("POST /api/v1/families/members/{id}/reset-password", fh.resetMemberPassword)
 	mux.HandleFunc("POST /api/v1/families/invite/regenerate", fh.regenerateCode)
 	mux.HandleFunc("POST /api/v1/families/invites", ih.create)
 	mux.HandleFunc("GET /api/v1/families/invites", ih.list)
 	mux.HandleFunc("DELETE /api/v1/families/invites/{id}", ih.delete)
 
+	// --- tasks ---
 	mux.HandleFunc("GET /api/v1/tasks", th.list)
 	mux.HandleFunc("POST /api/v1/tasks", th.create)
 	mux.HandleFunc("GET /api/v1/tasks/{id}", th.get)
 	mux.HandleFunc("PATCH /api/v1/tasks/{id}", th.update)
 	mux.HandleFunc("DELETE /api/v1/tasks/{id}", th.delete)
 
-	mux.HandleFunc("POST /api/v1/tasks/{id}/attachments", ah.upload)
-	mux.HandleFunc("GET /api/v1/tasks/{id}/attachments/{attID}", ah.serve)
-	mux.HandleFunc("DELETE /api/v1/tasks/{id}/attachments/{attID}", ah.delete)
-
+	// --- templates (повторяющиеся) ---
 	mux.HandleFunc("GET /api/v1/templates", tmplh.list)
 	mux.HandleFunc("POST /api/v1/templates", tmplh.create)
 	mux.HandleFunc("GET /api/v1/templates/{id}", tmplh.get)
 	mux.HandleFunc("PATCH /api/v1/templates/{id}", tmplh.update)
 	mux.HandleFunc("DELETE /api/v1/templates/{id}", tmplh.delete)
 
+	// --- attachments ---
+	mux.HandleFunc("POST /api/v1/tasks/{id}/attachments", ah.upload)
+	mux.HandleFunc("GET /api/v1/tasks/{id}/attachments/{attID}", ah.serve)
+	mux.HandleFunc("DELETE /api/v1/tasks/{id}/attachments/{attID}", ah.delete)
+
+	// --- SSE ---
 	mux.HandleFunc("GET /api/v1/events", sh.stream)
 
+	// --- статика ---
 	if cfg.WebDir != "" {
 		fs := http.FileServer(http.Dir(cfg.WebDir))
 

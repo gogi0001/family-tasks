@@ -114,7 +114,6 @@
 
   <button id="add-task-fab" type="button" title="Добавить задачу" hidden>+</button>
 
-  <!-- Модалка добавления задачи / создания правила -->
   <div id="add-task-modal">
     <form id="add-form">
       <h2>Новая задача</h2>
@@ -126,13 +125,11 @@
         <span>Повторяющаяся задача</span>
       </label>
 
-      <!-- Обычный срок: показываем, когда повторение выключено -->
       <label class="field" id="due-field">
         <span class="field-label">Срок (необязательно)</span>
         <input id="due" type="datetime-local">
       </label>
 
-      <!-- Параметры повторения -->
       <div id="recurring-fields" hidden>
         <label class="field">
           <span class="field-label">Тип</span>
@@ -180,7 +177,6 @@
     </form>
   </div>
 
-  <!-- Модалка списка повторяющихся -->
   <div id="templates-modal">
     <div class="templates-card">
       <div class="family-modal-head">
@@ -200,7 +196,6 @@
     </div>
   </div>
 
-  <!-- Модалка входа / регистрации -->
   <div id="auth-modal">
     <div class="auth-card">
       <div class="auth-tabs">
@@ -219,8 +214,8 @@
         <input id="register-email" type="email" placeholder="Email" required autocomplete="email">
         <input id="register-name" placeholder="Имя" required maxlength="60" autocomplete="name">
         <input id="register-password" type="password" placeholder="Пароль (минимум 8 символов)" required minlength="8"
-          inputmode="text" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false"> <label
-          class="field">
+          inputmode="text" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <label class="field">
           <span class="field-label">Инвайт (если пришли в семью)</span>
           <input id="register-invite" placeholder="Код инвайта" maxlength="64">
         </label>
@@ -230,7 +225,6 @@
     </div>
   </div>
 
-  <!-- Модалка управления семьёй -->
   <div id="family-modal">
     <div class="family-modal-card">
       <div class="family-modal-head">
@@ -261,7 +255,6 @@
     </div>
   </div>
 
-  <!-- Модалка изменения срока -->
   <div id="due-modal">
     <form id="due-form">
       <h2 id="due-modal-title">Изменить срок</h2>
@@ -275,15 +268,29 @@
     </form>
   </div>
 
-  <!-- Палитра цветов -->
+  <!-- Модалка "новый пароль" -->
+  <div id="newpass-modal">
+    <div class="newpass-card">
+      <h2 id="newpass-title">Новый пароль</h2>
+      <p class="muted small" id="newpass-subtitle"></p>
+      <div class="newpass-value" id="newpass-value"></div>
+      <p class="newpass-warning">
+        Показывается один раз. Скопируйте и передайте участнику —
+        после закрытия окна восстановить пароль будет нельзя.
+      </p>
+      <div class="modal-actions">
+        <button type="button" id="newpass-copy">Скопировать</button>
+        <button type="button" id="newpass-close">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
   <div id="color-picker" hidden>
     <div id="color-grid"></div>
   </div>
 
-  <!-- Скрытый input для загрузки вложений -->
   <input type="file" id="upload-input" accept="image/*" multiple hidden>
 
-  <!-- Лайтбокс -->
   <div id="lightbox" hidden>
     <img id="lightbox-img" alt="">
   </div>
