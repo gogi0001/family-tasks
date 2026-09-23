@@ -1,3 +1,4 @@
+
 import { state } from './state.js';
 import { checkDom, log } from './dom.js';
 import { api } from './api.js';
@@ -15,8 +16,6 @@ import * as sse from './sse.js';
 
 checkDom();
 
-// --- События ---
-
 on('unauthenticated', () => {
   log('event: unauthenticated — reset');
   tasks.closeAddModal();
@@ -24,6 +23,7 @@ on('unauthenticated', () => {
   family.closeFamilyModal();
   family.closeNewPassModal();
   auth.closePasswordModal();
+  user.closeUserMenu();
   attachments.closeLightbox();
   sse.stop();
   state.user = null;
@@ -42,6 +42,7 @@ on('logged-out', () => {
   family.closeFamilyModal();
   family.closeNewPassModal();
   auth.closePasswordModal();
+  user.closeUserMenu();
   attachments.closeLightbox();
   sse.stop();
   state.family = null;

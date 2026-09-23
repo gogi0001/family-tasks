@@ -25,7 +25,8 @@ export function closeAddModal() {
   els.addTaskModal.classList.remove('open');
   els.title.value = '';
   els.description.value = '';
-  els.due.value = '';
+  els.dueDate.value = '';
+  els.dueTime.value = '';
   els.taskRecurring.checked = false;
   updateRecurringUI();
 }
@@ -44,23 +45,60 @@ function openDueModal(task) {
   if (task.dueAt) {
     const d = new Date(task.dueAt);
     const pad = n => String(n).padStart(2, '0');
-    els.dueInput.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    els.dueInputDate.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    els.dueInputTime.value = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   } else {
-    els.dueInput.value = '';
+    els.dueInputDate.value = '';
+    els.dueInputTime.value = '';
   }
 
   els.dueModal.classList.add('open');
-  setTimeout(() => els.dueInput.focus(), 0);
+  setTimeout(() => els.dueInputDate.focus(), 0);
 }
 
 export function closeDueModal() {
   els.dueModal.classList.remove('open');
   dueEditTaskId = null;
-  els.dueInput.value = '';
+  els.dueInputDate.value = '';
+  els.dueInputTime.value = '';
 }
 
 function isDueModalOpen() {
   return els.dueModal.classList.contains('open');
+}
+
+// --- Сборка dueAt из двух полей ---
+
+// Логика:
+//   оба пусты        → '' (бессрочно)
+//   только дата      → дата + текущее время
+//   только время     → сегодняшняя дата + время
+//   оба заполнены    → как есть
+function buildDueAt(dateEl, timeEl) {
+  const d = dateEl.value;   // YYYY-MM-DD
+  const t = timeEl.value;   // HH:MM
+
+  if (!d && !t) return '';
+
+  const now = new Date();
+  let year = now.getFullYear();
+  let month = now.getMonth();       // 0-based
+  let day = now.getDate();
+  let hours = now.getHours();
+  let minutes = now.getMinutes();
+
+  if (d) {
+    const [y, m, dd] = d.split('-').map(Number);
+    year = y; month = m - 1; day = dd;
+  }
+  if (t) {
+    const [hh, mm] = t.split(':').map(Number);
+    hours = hh; minutes = mm;
+  }
+
+  const dt = new Date(year, month, day, hours, minutes, 0, 0);
+  if (isNaN(dt.getTime())) return '';
+  return dt.toISOString();
 }
 
 // --- Повторение в модалке добавления ---
@@ -119,13 +157,6 @@ function fmtDateTime(iso) {
     day: '2-digit', month: '2-digit',
     hour: '2-digit', minute: '2-digit',
   });
-}
-
-function toRFC3339(localValue) {
-  if (!localValue) return '';
-  const d = new Date(localValue);
-  if (isNaN(d.getTime())) return '';
-  return d.toISOString();
 }
 
 function isOverdue(task) {
@@ -331,11 +362,9 @@ function renderTask(t) {
   }
   card.appendChild(meta);
 
-  // Даты
   const dates = document.createElement('div');
   dates.className = 'task-dates';
 
-  // Иконка повторяющейся задачи
   if (t.templateId) {
     const recur = document.createElement('span');
     recur.className = 'chip small';
@@ -524,7 +553,6 @@ export function init() {
     if (e.key === 'Escape' && isDueModalOpen()) closeDueModal();
   });
 
-  // Чекбокс «Повторяющаяся» и переключатель типа
   els.taskRecurring.addEventListener('change', updateRecurringUI);
   els.recurringType.addEventListener('change', updateRecurringUI);
 
@@ -536,8 +564,7 @@ export function init() {
   els.dueForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!dueEditTaskId) return;
-    const value = els.dueInput.value;
-    const dueAt = value ? new Date(value).toISOString() : '';
+    const dueAt = buildDueAt(els.dueInputDate, els.dueInputTime);
     await applyDueChange(dueEditTaskId, dueAt);
   });
   els.dueClear.addEventListener('click', async () => {
@@ -590,7 +617,6 @@ export function init() {
     render();
   });
 
-  // Submit
   els.form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!state.user) { emit('unauthenticated'); return; }
@@ -629,7 +655,7 @@ export function init() {
       return;
     }
 
-    const dueAt = toRFC3339(els.due.value);
+    const dueAt = buildDueAt(els.dueDate, els.dueTime);
     try {
       await api('/tasks', {
         method: 'POST',

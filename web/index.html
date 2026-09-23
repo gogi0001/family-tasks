@@ -28,10 +28,15 @@
         <span id="who-avatar-letter"></span>
       </button>
       <span id="who-name"></span>
-      <button id="who-password" type="button" title="Сменить пароль" hidden>🔑</button>
-      <button id="who-logout" type="button" hidden title="Выйти">×</button>
+      <button id="who-menu" type="button" title="Меню" hidden>⋯</button>
     </div>
   </header>
+
+  <!-- Выпадающее меню пользователя -->
+  <div id="who-dropdown" hidden>
+    <button type="button" id="who-menu-password">Сменить пароль</button>
+    <button type="button" id="who-menu-logout">Выйти</button>
+  </div>
 
   <main>
     <section id="family-gate" hidden>
@@ -127,10 +132,13 @@
         <span>Повторяющаяся задача</span>
       </label>
 
-      <label class="field" id="due-field">
+      <div class="field" id="due-field">
         <span class="field-label">Срок (необязательно)</span>
-        <input id="due" type="datetime-local">
-      </label>
+        <div class="due-row">
+          <input id="due-date" type="date" title="Дата">
+          <input id="due-time" type="time" title="Время">
+        </div>
+      </div>
 
       <div id="recurring-fields" hidden>
         <label class="field">
@@ -289,7 +297,10 @@
     <form id="due-form">
       <h2 id="due-modal-title">Изменить срок</h2>
       <p id="due-modal-task" class="muted small"></p>
-      <input id="due-input" type="datetime-local">
+      <div class="due-row">
+        <input id="due-input-date" type="date" title="Дата">
+        <input id="due-input-time" type="time" title="Время">
+      </div>
       <div class="modal-actions modal-actions-3">
         <button type="button" id="due-clear">Без срока</button>
         <button type="button" id="due-cancel">Отмена</button>

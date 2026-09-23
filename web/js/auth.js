@@ -3,6 +3,7 @@ import { state } from './state.js';
 import { api } from './api.js';
 import { toast } from './toast.js';
 import { emit } from './events.js';
+// import * as user from './user.js';
 
 let activeTab = 'login';           // 'login' | 'register'
 let inviteFromURL = '';
@@ -184,7 +185,6 @@ async function onPasswordSubmit(e) {
 }
 
 // --- Init ---
-
 export function init() {
     els.authTabLogin.addEventListener('click', () => setTab('login'));
     els.authTabRegister.addEventListener('click', () => setTab('register'));
@@ -192,10 +192,11 @@ export function init() {
     els.authLoginForm.addEventListener('submit', onLogin);
     els.authRegForm.addEventListener('submit', onRegister);
 
-    els.whoLogout.addEventListener('click', onLogout);
+    // Меню «⋯»
+    els.whoMenuLogout.addEventListener('click', onLogout);
+    els.whoMenuPassword.addEventListener('click', openPasswordModal);
 
-    // Смена пароля
-    els.whoPassword.addEventListener('click', openPasswordModal);
+    // Модалка смены пароля
     els.pwdCancel.addEventListener('click', closePasswordModal);
     els.passwordModal.addEventListener('click', (e) => {
         if (e.target === els.passwordModal) closePasswordModal();

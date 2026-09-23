@@ -17,16 +17,33 @@ export function renderUser() {
     els.avatarLetter.textContent = letter;
     els.avatar.hidden = false;
     els.who.textContent = state.user.name;
-    els.whoLogout.hidden = false;
-    els.whoPassword.hidden = false;
+    els.whoMenu.hidden = false;
   } else {
     els.avatar.hidden = true;
     els.who.textContent = '';
-    els.whoLogout.hidden = true;
-    els.whoPassword.hidden = true;
+    els.whoMenu.hidden = true;
     els.colorPicker.hidden = true;
+    closeUserMenu();
   }
 }
+
+// --- Выпадающее меню пользователя ---
+
+function openUserMenu() {
+  els.whoDropdown.hidden = false;
+}
+
+export function closeUserMenu() {
+  els.whoDropdown.hidden = true;
+}
+
+function toggleUserMenu(e) {
+  e.stopPropagation();
+  if (els.whoDropdown.hidden) openUserMenu();
+  else closeUserMenu();
+}
+
+// --- Палитра цветов ---
 
 function renderColorPicker() {
   els.colorGrid.replaceChildren();
@@ -53,6 +70,8 @@ async function setColor(color) {
   }
 }
 
+// --- Init ---
+
 export function init() {
   els.avatar.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -65,5 +84,24 @@ export function init() {
     if (els.colorPicker.hidden) return;
     if (els.colorPicker.contains(e.target) || e.target === els.avatar) return;
     els.colorPicker.hidden = true;
+  });
+
+  // Меню «⋯»
+  els.whoMenu.addEventListener('click', toggleUserMenu);
+
+  // Клик по пункту меню — закрываем меню, дальше сработают обработчики
+  // из auth.js (они навешаны на те же кнопки).
+  els.whoDropdown.addEventListener('click', () => closeUserMenu());
+
+  // Клик вне меню
+  document.addEventListener('click', (e) => {
+    if (els.whoDropdown.hidden) return;
+    if (e.target === els.whoMenu) return;
+    if (els.whoDropdown.contains(e.target)) return;
+    closeUserMenu();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !els.whoDropdown.hidden) closeUserMenu();
   });
 }
