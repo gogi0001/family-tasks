@@ -5,6 +5,7 @@ import { toast } from './toast.js';
 import { memberByName, memberByID, isOwner } from './family.js';
 import { emit } from './events.js';
 import * as attachments from './attachments.js';
+import { fmtDateTime } from './format.js';
 
 const STATUSES = [
   { key: 'todo', label: 'Надо' },
@@ -68,8 +69,6 @@ function isDueModalOpen() {
 }
 
 // --- Сборка dueAt из двух полей ---
-
-// Логика:
 //   оба пусты        → '' (бессрочно)
 //   только дата      → дата + текущее время
 //   только время     → сегодняшняя дата + время
@@ -82,7 +81,7 @@ function buildDueAt(dateEl, timeEl) {
 
   const now = new Date();
   let year = now.getFullYear();
-  let month = now.getMonth();       // 0-based
+  let month = now.getMonth();
   let day = now.getDate();
   let hours = now.getHours();
   let minutes = now.getMinutes();
@@ -148,16 +147,6 @@ function validateRule(rule) {
 }
 
 // --- Утилиты ---
-
-function fmtDateTime(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
-  return d.toLocaleString('ru-RU', {
-    day: '2-digit', month: '2-digit',
-    hour: '2-digit', minute: '2-digit',
-  });
-}
 
 function isOverdue(task) {
   if (!task.dueAt) return false;
@@ -511,7 +500,7 @@ function fillFilterSelect(select, members, currentValue) {
   return valid ? currentValue : '';
 }
 
-// --- Подсветка ---
+// --- Подсветка задачи по deep link ---
 
 export function highlightTask(id) {
   if (!id) return;
@@ -640,12 +629,7 @@ export function init() {
           body: JSON.stringify({ title, description, assignee, rule }),
         });
         closeAddModal();
-        const next = created.nextRunAt
-          ? new Date(created.nextRunAt).toLocaleString('ru-RU', {
-            day: '2-digit', month: '2-digit',
-            hour: '2-digit', minute: '2-digit',
-          })
-          : '';
+        const next = fmtDateTime(created.nextRunAt);
         toast(next ? `Правило создано. Первая задача: ${next}` : 'Правило создано', 'info');
         emit('template-changed');
       } catch (err) {

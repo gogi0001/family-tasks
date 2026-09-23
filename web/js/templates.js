@@ -2,10 +2,9 @@ import { els } from './dom.js';
 import { state } from './state.js';
 import { api } from './api.js';
 import { toast } from './toast.js';
+import { fmtDateTime } from './format.js';
 
 const WD_NAMES = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
-
-let loaded = false;
 
 // --- Модалка списка ---
 
@@ -27,14 +26,13 @@ async function load() {
     try {
         const list = await api('/templates');
         renderList(list || []);
-        loaded = true;
     } catch (e) {
         if (e.status === 0) return;
         toast(e.message, 'error');
     }
 }
 
-// --- Рендер ---
+// --- Описание правила ---
 
 function describeRule(rule) {
     if (!rule) return '';
@@ -59,15 +57,7 @@ function describeRule(rule) {
     }
 }
 
-function fmtDate(iso) {
-    if (!iso) return '';
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return '';
-    return d.toLocaleString('ru-RU', {
-        day: '2-digit', month: '2-digit',
-        hour: '2-digit', minute: '2-digit',
-    });
-}
+// --- Рендер списка ---
 
 function renderList(list) {
     els.templatesList.replaceChildren();
@@ -88,7 +78,6 @@ function renderList(list) {
         const actions = document.createElement('div');
         actions.className = 'template-actions';
 
-        // Toggle
         const toggle = document.createElement('button');
         toggle.type = 'button';
         toggle.title = t.active ? 'Приостановить' : 'Возобновить';
@@ -96,7 +85,6 @@ function renderList(list) {
         toggle.addEventListener('click', () => toggleActive(t.id, !t.active));
         actions.appendChild(toggle);
 
-        // Delete
         const del = document.createElement('button');
         del.type = 'button';
         del.title = 'Удалить правило';
@@ -115,7 +103,7 @@ function renderList(list) {
         const when = document.createElement('div');
         when.className = 'template-when muted small';
         if (t.active) {
-            when.textContent = 'Следующая: ' + fmtDate(t.nextRunAt);
+            when.textContent = 'Следующая: ' + fmtDateTime(t.nextRunAt);
         } else {
             when.textContent = 'Приостановлено';
         }
@@ -165,7 +153,6 @@ export function init() {
     });
 }
 
-// Перечитать список, если модалка открыта (вызывается по SSE).
 export function reloadIfOpen() {
     if (isOpen()) load();
 }
