@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Сплошной фон: маска требует 100% покрытия -->
+  <rect width="64" height="64" fill="#2a6df4"/>
+
+  <!-- Контент в безопасной зоне (внутренний круг r ~25.6) -->
+  <circle cx="32" cy="32" r="20" fill="#ffffff" fill-opacity="0.15"/>
+
+  <!-- Галочка -->
+  <path d="M22 33 L29 40 L43 24"
+        fill="none"
+        stroke="#ffffff"
+        stroke-width="5"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+</svg>

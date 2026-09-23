@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"mime"
 	"net/http"
 	"os"
 	"os/signal"
@@ -27,6 +28,8 @@ import (
 )
 
 func main() {
+	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
+
 	cfg, err := config.Parse(os.Args[1:])
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
