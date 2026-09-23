@@ -4,19 +4,41 @@
 }
 
 :root {
+  color-scheme: light dark;
+
+  /* Светлая тема (по умолчанию) */
   --bg: #f5f6f8;
   --card: #ffffff;
   --text: #14161a;
   --muted: #7a7f87;
   --border: #e2e5ea;
   --accent: #2a6df4;
+  --accent-hover: #1f5cdb;
   --err: #d33636;
   --ok: #1e9e4a;
+  --toast-bg: #14161a;
+  --toast-text: #ffffff;
+  --overlay: rgba(20, 22, 26, 0.4);
 }
 
-/* Глобальное правило: любой [hidden] скрыт, что бы ни говорил `display`.
-   Страхует от классической ловушки, когда авторский `display: flex/grid`
-   перебивает браузерный `[hidden] { display: none }`. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161a;
+    --card: #1f2229;
+    --text: #e8eaed;
+    --muted: #8a8f98;
+    --border: #2c3038;
+    --accent: #5b9dff;
+    --accent-hover: #78adff;
+    --err: #f27066;
+    --ok: #5ecb6f;
+    --toast-bg: #2c3038;
+    --toast-text: #e8eaed;
+    --overlay: rgba(0, 0, 0, 0.55);
+  }
+}
+
+/* Глобальное правило: любой [hidden] скрыт. */
 [hidden] {
   display: none !important;
 }
@@ -32,6 +54,14 @@ body {
   font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+}
+
+/* Поля ввода — используем переменные, чтобы работали в обеих темах */
+input,
+select,
+textarea,
+button {
+  color: var(--text);
 }
 
 /* ─── Header ────────────────────────────────────── */
@@ -125,7 +155,6 @@ h1 {
   cursor: pointer;
 }
 
-
 #family-open {
   display: inline-flex;
   align-items: center;
@@ -144,6 +173,58 @@ h1 {
 
 #family-open:active {
   background: var(--bg);
+}
+
+#who-menu {
+  padding: 2px 10px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  letter-spacing: -1px;
+}
+
+#who-menu:active {
+  background: var(--bg);
+}
+
+#who-dropdown {
+  position: fixed;
+  top: calc(56px + env(safe-area-inset-top));
+  right: 16px;
+  z-index: 150;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  display: grid;
+  min-width: 190px;
+}
+
+#who-dropdown button {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+}
+
+#who-dropdown button:active {
+  background: var(--bg);
+}
+
+#who-menu-logout {
+  color: var(--err);
 }
 
 /* ─── Main ──────────────────────────────────────── */
@@ -178,6 +259,8 @@ main {
   font: inherit;
   border: 1px solid var(--border);
   border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
 }
 
 .card button {
@@ -189,6 +272,10 @@ main {
   background: var(--accent);
   border: none;
   border-radius: 8px;
+}
+
+.card button:active {
+  background: var(--accent-hover);
 }
 
 /* ─── Toolbar ───────────────────────────────────── */
@@ -212,6 +299,8 @@ main {
 }
 
 .segmented button {
+  display: inline-flex;
+  align-items: center;
   padding: 6px 12px;
   font: inherit;
   font-size: 14px;
@@ -227,6 +316,22 @@ main {
 .segmented button.active {
   background: var(--accent);
   color: #fff;
+}
+
+.segmented button .badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+  border-radius: 999px;
+  background: rgba(127, 127, 127, 0.20);
+  color: inherit;
+}
+
+.segmented button.active .badge {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .toolbar-actions {
@@ -269,6 +374,23 @@ main {
   height: 8px;
   border-radius: 50%;
   background: var(--accent);
+}
+
+#templates-open {
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#templates-open:active {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 #task-sort {
@@ -315,7 +437,7 @@ main {
   font: inherit;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--bg);
   color: var(--text);
   min-width: 0;
 }
@@ -412,6 +534,11 @@ main {
   color: var(--muted);
 }
 
+.chip.small {
+  padding: 1px 6px;
+  font-size: 12px;
+}
+
 .chip .dot {
   display: inline-block;
   width: 8px;
@@ -443,6 +570,7 @@ main {
   gap: 10px;
   font-size: 12px;
   color: var(--muted);
+  align-items: center;
 }
 
 .task-dates .overdue {
@@ -454,18 +582,34 @@ main {
   color: var(--muted);
 }
 
-/* Подсветка задачи, к которой пришли по deep link */
+.due-edit {
+  margin-left: 2px;
+  padding: 0 4px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.due-edit:active {
+  color: var(--accent);
+}
+
 .task.task-highlight {
   animation: task-flash 4s ease-out;
 }
 
 @keyframes task-flash {
   0% {
-    box-shadow: 0 0 0 3px var(--accent), 0 0 0 8px rgba(42, 109, 244, 0.25);
+    box-shadow: 0 0 0 3px var(--accent), 0 0 0 8px rgba(91, 157, 255, 0.25);
   }
 
   60% {
-    box-shadow: 0 0 0 3px var(--accent), 0 0 0 8px rgba(42, 109, 244, 0.10);
+    box-shadow: 0 0 0 3px var(--accent), 0 0 0 8px rgba(91, 157, 255, 0.10);
   }
 
   100% {
@@ -485,7 +629,7 @@ main {
   font: inherit;
   font-size: 13px;
   color: var(--muted);
-  background: #fff;
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
   cursor: pointer;
@@ -533,7 +677,7 @@ main {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   z-index: 90;
 }
 
@@ -549,7 +693,7 @@ main {
   z-index: 200;
   align-items: center;
   justify-content: center;
-  background: rgba(20, 22, 26, 0.4);
+  background: var(--overlay);
   padding: 16px;
 }
 
@@ -560,6 +704,8 @@ main {
 #add-task-modal form {
   width: 100%;
   max-width: 380px;
+  max-height: 90vh;
+  overflow-y: auto;
   background: var(--card);
   border-radius: 12px;
   padding: 20px;
@@ -579,7 +725,7 @@ main {
   font: inherit;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--bg);
   color: var(--text);
 }
 
@@ -599,6 +745,88 @@ main {
   color: var(--muted);
 }
 
+.due-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 8px;
+}
+
+#add-task-modal .due-row input,
+#due-modal .due-row input {
+  width: 100%;
+  min-width: 0;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.checkbox-row input {
+  margin: 0;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+#recurring-fields {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  background: var(--bg);
+  border-radius: 8px;
+}
+
+#recurring-fields .field {
+  display: grid;
+  gap: 4px;
+}
+
+#add-task-modal #recurring-fields input,
+#add-task-modal #recurring-fields select {
+  width: 100%;
+  padding: 8px 10px;
+  font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+}
+
+.weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.weekdays label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 13px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.weekdays input {
+  width: auto;
+  margin: 0;
+}
+
+.weekdays input:checked+span {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .modal-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -614,7 +842,9 @@ main {
   cursor: pointer;
 }
 
-#add-task-cancel {
+#add-task-cancel,
+#due-cancel,
+#pwd-cancel {
   background: transparent;
   color: var(--text);
   border: 1px solid var(--border);
@@ -627,356 +857,34 @@ main {
 }
 
 #add-task-modal button[type="submit"]:active,
-#add-task-cancel:active {
+#add-task-cancel:active,
+#due-cancel:active,
+#pwd-cancel:active {
   filter: brightness(0.95);
 }
 
-/* ─── Modal: name ──────────────────────────────── */
-#name-modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  align-items: center;
-  justify-content: center;
-  background: rgba(20, 22, 26, 0.4);
-  padding: 16px;
+.modal-actions-3 {
+  grid-template-columns: 1fr 1fr 1.2fr;
 }
 
-#name-modal.open {
-  display: flex;
-}
-
-#name-modal form {
-  width: 100%;
-  max-width: 320px;
-  background: var(--card);
-  border-radius: 12px;
-  padding: 20px;
-  display: grid;
-  gap: 12px;
-}
-
-#name-modal h2 {
-  margin: 0;
-  font-size: 18px;
-}
-
-#name-modal input {
-  padding: 10px 12px;
-  font: inherit;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
-#name-modal button {
-  padding: 12px;
-  font: inherit;
-  font-weight: 600;
-  color: #fff;
-  background: var(--accent);
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-/* ─── Modal: family ────────────────────────────── */
-#family-modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  align-items: center;
-  justify-content: center;
-  background: rgba(20, 22, 26, 0.4);
-  padding: 16px;
-}
-
-#family-modal.open {
-  display: flex;
-}
-
-.family-modal-card {
-  width: 100%;
-  max-width: 380px;
-  background: var(--card);
-  border-radius: 12px;
-  padding: 20px;
-  display: grid;
-  gap: 16px;
-}
-
-.family-modal-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.family-modal-head h2 {
-  margin: 0;
-  font-size: 18px;
-  word-break: break-word;
-}
-
-#family-modal-close {
-  flex-shrink: 0;
-  padding: 0 6px;
-  font-size: 22px;
-  line-height: 1;
-  color: var(--muted);
+#due-clear {
   background: transparent;
-  border: none;
-  cursor: pointer;
-}
-
-#family-modal-close:active {
-  color: var(--text);
-}
-
-.family-modal-members-label {
-  font-size: 12px;
-  color: var(--muted);
-}
-
-#family-modal .modal-actions {
-  display: block;
-}
-
-#family-modal-close-btn {
-  width: 100%;
-  padding: 11px;
-  font: inherit;
-  font-weight: 600;
-  color: var(--text);
-  background: transparent;
+  color: var(--err);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
+  font-size: 13px;
 }
 
-#family-modal-close-btn:active {
-  background: var(--bg);
-}
-
-/* ─── Color picker ─────────────────────────────── */
-#color-picker {
-  position: fixed;
-  top: calc(56px + env(safe-area-inset-top));
-  right: 16px;
-  z-index: 150;
-  padding: 12px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-}
-
-#color-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-}
-
-.color-swatch {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
-
-.color-swatch.active {
-  outline: 2px solid var(--text);
-  outline-offset: 2px;
-}
-
-/* ─── Toast ────────────────────────────────────── */
-#toast {
-  position: fixed;
-  left: 50%;
-  bottom: calc(88px + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
-  padding: 10px 16px;
-  font-size: 14px;
-  max-width: 90vw;
-  background: #14161a;
-  color: #fff;
-  border-radius: 8px;
-  z-index: 300;
-}
-
-#toast.error {
-  background: var(--err);
-}
-
-/* ─── Responsive tweaks ────────────────────────── */
-@media (max-width: 460px) {
-  .filter-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 380px) {
-  #conn-text {
-    display: none;
-  }
-
-  .conn {
-    padding: 5px;
-  }
-
-  #who-name {
-    display: none;
-  }
-}
-
-.segmented {
-  display: inline-flex;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 2px;
-  overflow-x: auto;
-  max-width: 100%;
-  -webkit-overflow-scrolling: touch;
-}
-
-.segmented button {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 12px;
-  font: inherit;
-  font-size: 14px;
-  border: none;
-  background: transparent;
-  border-radius: 6px;
-  color: var(--muted);
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.segmented button.active {
+#due-modal button[type="submit"] {
   background: var(--accent);
   color: #fff;
-}
-
-/* Счётчик на кнопке */
-.segmented button .badge {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 6px;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.5;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.08);
-  color: inherit;
-}
-
-.segmented button.active .badge {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-/* ─── Task attachments ─────────────────────────── */
-.task-attachments {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.task-attachment {
-  position: relative;
-  width: 80px;
-  height: 80px;
-  border-radius: 8px;
-  overflow: hidden;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.task-attachment img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  cursor: zoom-in;
-}
-
-.attachment-remove {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  font-size: 14px;
-  line-height: 1;
-  color: #fff;
-  background: rgba(0, 0, 0, 0.55);
   border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }
 
-.attachment-remove:active {
-  background: rgba(0, 0, 0, 0.85);
+#due-modal button:active {
+  filter: brightness(0.95);
 }
 
-button.attachment-add {
-  font-family: inherit;
-  font-size: 26px;
-  font-weight: 300;
-  line-height: 1;
-  color: var(--muted);
-  background: var(--bg);
-  border: 1px dashed var(--border);
-  cursor: pointer;
-}
-
-button.attachment-add:active {
-  background: var(--card);
-}
-
-/* ─── Lightbox ─────────────────────────────────── */
-#lightbox {
-  position: fixed;
-  inset: 0;
-  z-index: 400;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.92);
-  padding: 16px;
-  cursor: zoom-out;
-}
-
-#lightbox img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  border-radius: 4px;
-  cursor: default;
-}
-
-/* Компактный "+", когда вложений нет */
-button.attachment-add.is-empty {
-  width: 36px;
-  height: 36px;
-  font-size: 20px;
-  border-radius: 999px;
-  border-style: solid;
-}
-
-/* ─── Auth modal ───────────────────────────────── */
+/* ─── Modal: auth ──────────────────────────────── */
 #auth-modal {
   display: none;
   position: fixed;
@@ -984,7 +892,7 @@ button.attachment-add.is-empty {
   z-index: 250;
   align-items: center;
   justify-content: center;
-  background: rgba(20, 22, 26, 0.4);
+  background: var(--overlay);
   padding: 16px;
 }
 
@@ -1025,7 +933,7 @@ button.attachment-add.is-empty {
 .auth-tabs button.active {
   background: var(--card);
   color: var(--text);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 #auth-modal form {
@@ -1038,7 +946,7 @@ button.attachment-add.is-empty {
   font: inherit;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--bg);
   color: var(--text);
 }
 
@@ -1082,158 +990,155 @@ button.attachment-add.is-empty {
   margin: 0;
 }
 
-/* ─── Invites (в модалке семьи) ────────────────── */
-#invites-section {
-  display: grid;
-  gap: 8px;
-}
-
-#invites-section .family-modal-members-label {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-#invite-create {
-  padding: 4px 10px;
-  font: inherit;
-  font-size: 13px;
-  color: var(--accent);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-#invite-create:active {
-  background: var(--bg);
-}
-
-.invites-list {
-  display: grid;
-  gap: 6px;
-}
-
-.invite-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  background: var(--bg);
-  border-radius: 8px;
-  font-size: 13px;
-}
-
-.invite-link {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  min-width: 0;
-  flex: 1;
-}
-
-.invite-link b,
-.invite-code {
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 12px;
-  word-break: break-all;
-  overflow-wrap: anywhere;
-  min-width: 0;
-}
-
-.invite-status {
-  font-size: 11px;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--card);
-}
-
-.invite-status.ok {
-  color: var(--ok);
-}
-
-.invite-status.muted {
-  color: var(--muted);
-}
-
-.invite-actions {
-  display: inline-flex;
-  gap: 4px;
-}
-
-.invite-actions button {
-  padding: 2px 8px;
-  font: inherit;
-  font-size: 12px;
-  color: var(--muted);
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.invite-actions button:active {
-  background: #fff;
-}
-
-/* ─── Modal: due date ──────────────────────────── */
-#due-modal {
+/* ─── Modal: family ────────────────────────────── */
+#family-modal {
   display: none;
   position: fixed;
   inset: 0;
   z-index: 200;
   align-items: center;
   justify-content: center;
-  background: rgba(20, 22, 26, 0.4);
+  background: var(--overlay);
   padding: 16px;
 }
 
-#due-modal.open {
+#family-modal.open {
   display: flex;
 }
 
-#due-modal form {
+.family-modal-card {
   width: 100%;
-  max-width: 340px;
+  max-width: 420px;
+  max-height: 85vh;
+  overflow-y: auto;
   background: var(--card);
   border-radius: 12px;
   padding: 20px;
   display: grid;
+  gap: 16px;
+}
+
+.family-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   gap: 12px;
 }
 
-#due-modal h2 {
+.family-modal-head h2 {
+  margin: 0;
+  font-size: 18px;
+  word-break: break-word;
+}
+
+#family-modal-close,
+#templates-close {
+  flex-shrink: 0;
+  padding: 0 6px;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+#family-modal-close:active,
+#templates-close:active {
+  color: var(--text);
+}
+
+.family-modal-members-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+#family-modal .modal-actions {
+  display: block;
+}
+
+#family-modal-close-btn,
+#templates-close-btn {
+  width: 100%;
+  padding: 11px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#family-modal-close-btn:active,
+#templates-close-btn:active {
+  background: var(--bg);
+}
+
+/* ─── Modal: password (смена своего) ───────────── */
+#password-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  align-items: center;
+  justify-content: center;
+  background: var(--overlay);
+  padding: 16px;
+}
+
+#password-modal.open {
+  display: flex;
+}
+
+#password-modal form {
+  width: 100%;
+  max-width: 380px;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 20px;
+  display: grid;
+  gap: 14px;
+}
+
+#password-modal h2 {
   margin: 0;
   font-size: 18px;
 }
 
-#due-modal .muted.small {
-  margin: 0;
-  font-size: 13px;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+#password-modal .field {
+  display: grid;
+  gap: 4px;
 }
 
-#due-modal input {
+#password-modal .field-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+#password-modal input {
   width: 100%;
   padding: 10px 12px;
   font: inherit;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--bg);
   color: var(--text);
 }
 
-#due-modal input:focus {
+#password-modal input:focus {
   outline: 2px solid var(--accent);
   outline-offset: -1px;
 }
 
-#due-modal .modal-actions button {
+#password-modal .modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+#password-modal .modal-actions button {
   padding: 11px;
   font: inherit;
   font-weight: 600;
@@ -1241,143 +1146,17 @@ button.attachment-add.is-empty {
   cursor: pointer;
 }
 
-#due-modal .modal-actions-3 {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1.2fr;
-  gap: 6px;
-}
-
-#due-clear {
-  background: transparent;
-  color: var(--err);
-  border: 1px solid var(--border);
-  font-size: 13px;
-}
-
-#due-cancel {
-  background: transparent;
-  color: var(--text);
-  border: 1px solid var(--border);
-  font-size: 13px;
-}
-
-#due-modal button[type="submit"] {
+#password-modal button[type="submit"] {
   background: var(--accent);
   color: #fff;
   border: none;
 }
 
-#due-modal button:active {
+#password-modal button:active {
   filter: brightness(0.95);
 }
 
-/* Кнопка-карандаш рядом со сроком */
-.due-edit {
-  margin-left: 6px;
-  padding: 0 4px;
-  font: inherit;
-  font-size: 12px;
-  line-height: 1;
-  color: var(--muted);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  vertical-align: middle;
-}
-
-.due-edit:active {
-  color: var(--accent);
-}
-
-/* ─── Recurring: чекбокс и параметры ─────────── */
-.checkbox-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.checkbox-row input {
-  margin: 0;
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-}
-
-#recurring-fields {
-  display: grid;
-  gap: 10px;
-  padding: 10px;
-  background: var(--bg);
-  border-radius: 8px;
-}
-
-#recurring-fields .field {
-  display: grid;
-  gap: 4px;
-}
-
-#add-task-modal #recurring-fields input,
-#add-task-modal #recurring-fields select {
-  width: 100%;
-  padding: 8px 10px;
-  font: inherit;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--text);
-}
-
-.weekdays {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.weekdays label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  font-size: 13px;
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.weekdays input {
-  width: auto;
-  margin: 0;
-}
-
-.weekdays input:checked+span {
-  color: var(--accent);
-  font-weight: 600;
-}
-
-/* ─── Templates modal ─────────────────────────── */
-#templates-open {
-  padding: 6px 10px;
-  font: inherit;
-  font-size: 18px;
-  line-height: 1;
-  color: var(--muted);
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-#templates-open:active {
-  color: var(--accent);
-  border-color: var(--accent);
-}
-
+/* ─── Modal: templates ─────────────────────────── */
 #templates-modal {
   display: none;
   position: fixed;
@@ -1385,7 +1164,7 @@ button.attachment-add.is-empty {
   z-index: 200;
   align-items: center;
   justify-content: center;
-  background: rgba(20, 22, 26, 0.4);
+  background: var(--overlay);
   padding: 16px;
 }
 
@@ -1470,33 +1249,62 @@ button.attachment-add.is-empty {
   font-size: 12px;
 }
 
-/* ─── Chip для иконки в карточке ──────────────── */
-.chip.small {
-  padding: 1px 6px;
-  font-size: 12px;
+/* ─── Modal: due (изменение срока) ─────────────── */
+#due-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  background: var(--overlay);
+  padding: 16px;
 }
 
-#templates-modal .modal-actions {
-  display: block;
+#due-modal.open {
+  display: flex;
 }
 
-#templates-close-btn {
+#due-modal form {
   width: 100%;
-  padding: 11px;
+  max-width: 360px;
+  background: var(--card);
+  border-radius: 12px;
+  padding: 20px;
+  display: grid;
+  gap: 12px;
+}
+
+#due-modal h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+#due-modal .muted.small {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#due-modal input {
+  width: 100%;
+  padding: 10px 12px;
   font: inherit;
-  font-weight: 600;
-  color: var(--text);
-  background: transparent;
   border: 1px solid var(--border);
   border-radius: 8px;
-  cursor: pointer;
-}
-
-#templates-close-btn:active {
   background: var(--bg);
+  color: var(--text);
 }
 
-/* ─── Modal: new password ─────────────────────── */
+#due-modal input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* ─── Modal: new password (участника) ──────────── */
 #newpass-modal {
   display: none;
   position: fixed;
@@ -1504,7 +1312,7 @@ button.attachment-add.is-empty {
   z-index: 300;
   align-items: center;
   justify-content: center;
-  background: rgba(20, 22, 26, 0.5);
+  background: var(--overlay);
   padding: 16px;
 }
 
@@ -1583,159 +1391,268 @@ button.attachment-add.is-empty {
   filter: brightness(0.95);
 }
 
-/* ─── Modal: change password ──────────────────── */
-#password-modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 300;
-  align-items: center;
-  justify-content: center;
-  background: rgba(20, 22, 26, 0.4);
-  padding: 16px;
-}
-
-#password-modal.open {
-  display: flex;
-}
-
-#password-modal form {
-  width: 100%;
-  max-width: 380px;
-  background: var(--card);
-  border-radius: 12px;
-  padding: 20px;
-  display: grid;
-  gap: 14px;
-}
-
-#password-modal h2 {
-  margin: 0;
-  font-size: 18px;
-}
-
-#password-modal .field {
-  display: grid;
-  gap: 4px;
-}
-
-#password-modal .field-label {
-  font-size: 13px;
-  color: var(--muted);
-}
-
-#password-modal input {
-  width: 100%;
-  padding: 10px 12px;
-  font: inherit;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--text);
-}
-
-#password-modal input:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: -1px;
-}
-
-#password-modal .modal-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-#password-modal .modal-actions button {
-  padding: 11px;
-  font: inherit;
-  font-weight: 600;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-#pwd-cancel {
-  background: transparent;
-  color: var(--text);
-  border: 1px solid var(--border);
-}
-
-#password-modal button[type="submit"] {
-  background: var(--accent);
-  color: #fff;
-  border: none;
-}
-
-#password-modal button:active {
-  filter: brightness(0.95);
-}
-
-/* ─── Меню «⋯» в шапке ────────────────────────── */
-#who-menu {
-  padding: 2px 10px;
-  font-size: 18px;
-  line-height: 1;
-  color: var(--muted);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  cursor: pointer;
-  letter-spacing: -1px;
-}
-
-#who-menu:active {
-  background: var(--bg);
-}
-
-#who-dropdown {
+/* ─── Color picker ─────────────────────────────── */
+#color-picker {
   position: fixed;
   top: calc(56px + env(safe-area-inset-top));
   right: 16px;
   z-index: 150;
-  padding: 4px;
+  padding: 12px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+#color-grid {
   display: grid;
-  min-width: 190px;
-}
-
-#who-dropdown[hidden] {
-  display: none;
-}
-
-#who-dropdown button {
-  display: block;
-  width: 100%;
-  padding: 10px 12px;
-  font: inherit;
-  font-size: 14px;
-  color: var(--text);
-  background: transparent;
-  border: none;
-  border-radius: 8px;
-  text-align: left;
-  cursor: pointer;
-}
-
-#who-dropdown button:active {
-  background: var(--bg);
-}
-
-#who-menu-logout {
-  color: var(--err);
-}
-
-/* ─── Дата + время в одну строку ──────────────── */
-.due-row {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
+  grid-template-columns: repeat(5, 1fr);
   gap: 8px;
 }
 
-#add-task-modal .due-row input,
-#due-modal .due-row input {
+.color-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.color-swatch.active {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+/* ─── Toast ────────────────────────────────────── */
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(88px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  padding: 10px 16px;
+  font-size: 14px;
+  max-width: 90vw;
+  background: var(--toast-bg);
+  color: var(--toast-text);
+  border-radius: 8px;
+  z-index: 300;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+#toast.error {
+  background: var(--err);
+  color: #fff;
+}
+
+/* ─── Attachments ──────────────────────────────── */
+.task-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.task-attachment {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.task-attachment img {
   width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  cursor: zoom-in;
+}
+
+.attachment-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.attachment-remove:active {
+  background: rgba(0, 0, 0, 0.85);
+}
+
+button.attachment-add {
+  font-family: inherit;
+  font-size: 26px;
+  font-weight: 300;
+  line-height: 1;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  cursor: pointer;
+}
+
+button.attachment-add:active {
+  background: var(--card);
+}
+
+button.attachment-add.is-empty {
+  width: 36px;
+  height: 36px;
+  font-size: 20px;
+  border-radius: 999px;
+  border-style: solid;
+}
+
+/* ─── Lightbox ─────────────────────────────────── */
+#lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.92);
+  padding: 16px;
+  cursor: zoom-out;
+}
+
+#lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+  cursor: default;
+}
+
+/* ─── Invites (в модалке семьи) ────────────────── */
+#invites-section {
+  display: grid;
+  gap: 8px;
+}
+
+#invites-section .family-modal-members-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#invite-create {
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#invite-create:active {
+  background: var(--bg);
+}
+
+.invites-list {
+  display: grid;
+  gap: 6px;
+}
+
+.invite-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.invite-link {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  flex-wrap: wrap;
   min-width: 0;
+  flex: 1;
+}
+
+.invite-link b,
+.invite-code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.invite-status {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--card);
+}
+
+.invite-status.ok {
+  color: var(--ok);
+}
+
+.invite-status.muted {
+  color: var(--muted);
+}
+
+.invite-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.invite-actions button {
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.invite-actions button:active {
+  background: var(--bg);
+}
+
+/* ─── Responsive tweaks ────────────────────────── */
+@media (max-width: 460px) {
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 380px) {
+  #conn-text {
+    display: none;
+  }
+
+  .conn {
+    padding: 5px;
+  }
+
+  #who-name {
+    display: none;
+  }
 }
